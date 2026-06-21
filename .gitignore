@@ -1,0 +1,13 @@
+node_modules
+.pnpm-store
+.cache
+dist
+coverage
+.wrangler
+.wrangler-home
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+playwright-report
+test-results
