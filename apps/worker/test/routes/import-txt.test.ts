@@ -123,6 +123,36 @@ describe("TXT import route", () => {
       content: "灯火亮了。"
     });
     expect(objects.get(secondChapter.objectKey)).toBe("灯火亮了。");
+
+    const duplicateResponse = await app.request(
+      "/api/import/txt",
+      {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          sourceFileId: "fs-1",
+          sourcePath: "/novels/雨夜.txt",
+          fileName: "雨夜 作者张三.txt",
+          fileSize: 1024,
+          text
+        })
+      },
+      env
+    );
+    const duplicateBody = (await duplicateResponse.json()) as ApiResponse<unknown>;
+
+    expect(duplicateResponse.status).toBe(409);
+    expect(duplicateBody).toMatchObject({
+      ok: false,
+      error: {
+        code: "BOOK_ALREADY_IMPORTED"
+      }
+    });
+    expect(state.books).toHaveLength(1);
+    expect(state.importJobs).toHaveLength(1);
   });
 });
 
@@ -361,6 +391,11 @@ function queryStatement(sql: string, bindings: unknown[], state: TestDatabaseSta
 
   if (normalizedSql.includes("from books")) {
     const [userId, bookId] = bindings as [string, string];
+
+    if (normalizedSql.includes("source_file_id = ?")) {
+      return state.books.filter((book) => book.user_id === userId && book.source_file_id === bookId);
+    }
+
     return state.books.filter((book) => book.user_id === userId && book.id === bookId);
   }
 

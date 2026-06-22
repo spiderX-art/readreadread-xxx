@@ -135,6 +135,25 @@ export async function findBookRow(db: D1Database, userId: string, bookId: string
     .first<BookRow>();
 }
 
+export async function findBookRowBySourceFileId(
+  db: D1Database,
+  userId: string,
+  sourceFileId: string
+): Promise<BookRow | null> {
+  return db
+    .prepare(
+      `
+        SELECT ${BOOK_COLUMNS}
+        FROM books
+        WHERE user_id = ? AND source_file_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `
+    )
+    .bind(userId, sourceFileId)
+    .first<BookRow>();
+}
+
 export async function createBookRow(db: D1Database, input: CreateBookRowInput): Promise<void> {
   await db
     .prepare(

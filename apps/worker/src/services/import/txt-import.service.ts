@@ -1,6 +1,6 @@
 import { parseTitleAuthor } from "parser";
 import type { Book } from "shared";
-import { createBookRow, updateBookImportStats } from "../../db/repositories/book.repo";
+import { createBookRow, findBookRowBySourceFileId, updateBookImportStats } from "../../db/repositories/book.repo";
 import { createChapterRow } from "../../db/repositories/chapter.repo";
 import {
   createImportJobRow,
@@ -44,6 +44,12 @@ export async function importTxtBook(db: D1Database, bucket: R2Bucket, input: Txt
   const jobId = createId("import_job");
 
   await ensureUserRow(db, input.userId, createdAt);
+  const existingBook = await findBookRowBySourceFileId(db, input.userId, input.sourceFileId);
+
+  if (existingBook) {
+    throw new AppError(409, "BOOK_ALREADY_IMPORTED", "该网盘文件已导入书架");
+  }
+
   await createImportJobRow(db, {
     id: jobId,
     userId: input.userId,

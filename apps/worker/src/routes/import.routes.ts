@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import type { ImportPreview } from "shared";
+import { findBookRowBySourceFileId } from "../db/repositories/book.repo";
 import { findImportJobRow, type ImportJobRow } from "../db/repositories/import-job.repo";
 import type { AppEnv } from "../env";
 import { downloadBaiduTxtFile } from "../services/baidu/baidu-file.service";
@@ -54,6 +55,8 @@ importRoutes.post("/txt", async (c) => {
   if (!body.sourceFileId || !body.sourcePath || !body.fileName) {
     return c.json(fail("INVALID_TXT_IMPORT", "缺少 TXT 导入所需文件信息"), 400);
   }
+
+  await assertNotImported(c, body.sourceFileId);
 
   let text = body.text ?? body.content ?? body.sampleText;
   let fileName = body.fileName;
@@ -118,6 +121,14 @@ async function getBaiduTxtTextIfNeeded(c: Context<AppEnv>, body: ImportPreviewRe
 
   const downloaded = await downloadBaiduTxtForRequest(c, body);
   return downloaded.text;
+}
+
+async function assertNotImported(c: Context<AppEnv>, sourceFileId: string): Promise<void> {
+  const existingBook = await findBookRowBySourceFileId(c.env.DB, c.get("userId"), sourceFileId);
+
+  if (existingBook) {
+    throw new AppError(409, "BOOK_ALREADY_IMPORTED", "该网盘文件已导入书架");
+  }
 }
 
 async function downloadBaiduTxtForRequest(
