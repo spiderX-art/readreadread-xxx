@@ -63,7 +63,7 @@ importRoutes.post("/txt", async (c) => {
       ? body.fileSize
       : new TextEncoder().encode(text).byteLength;
   const result = await importTxtBook(c.env.DB, c.env.BOOK_BUCKET, {
-    userId: c.req.header("x-user-id") ?? "local-user",
+    userId: c.get("userId"),
     sourceFileId: body.sourceFileId,
     sourcePath: body.sourcePath,
     fileName: body.fileName,
@@ -79,7 +79,7 @@ importRoutes.post("/txt", async (c) => {
 importRoutes.get("/jobs/:jobId", async (c) => {
   const job = await findImportJobRow(c.env.DB, c.req.param("jobId"));
 
-  if (!job) {
+  if (!job || job.user_id !== c.get("userId")) {
     throw new AppError(404, "IMPORT_JOB_NOT_FOUND", "导入任务不存在");
   }
 

@@ -9,6 +9,7 @@ import { readerRoutes } from "./routes/reader.routes";
 import { reviewsRoutes } from "./routes/reviews.routes";
 import { searchRoutes } from "./routes/search.routes";
 import { tagRoutes } from "./routes/tags.routes";
+import { requireAuth } from "./middleware/auth.middleware";
 import { corsMiddleware } from "./middleware/cors.middleware";
 import { handleError } from "./middleware/error.middleware";
 import { ok } from "./utils/response";
@@ -29,6 +30,12 @@ app.get("/api/health", (c) =>
 );
 
 app.route("/api/auth", authRoutes);
+app.use("/api/books", requireAuth);
+app.use("/api/tags", requireAuth);
+app.use("/api/netdisk/*", requireAuth);
+app.use("/api/import/*", requireAuth);
+app.use("/api/books/*", requireAuth);
+app.use("/api/tags/*", requireAuth);
 app.route("/api/netdisk", netdiskRoutes);
 app.route("/api/import", importRoutes);
 app.route("/api/books", bookRoutes);

@@ -9,10 +9,8 @@ import { ok } from "../utils/response";
 
 export const searchRoutes = new Hono<AppEnv>();
 
-const LOCAL_USER_ID = "local-user";
-
 searchRoutes.get("/:bookId/search", async (c) => {
-  const userId = c.req.header("x-user-id") ?? LOCAL_USER_ID;
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   const q = c.req.query("q") ?? "";
   const book = await findBookRow(c.env.DB, userId, bookId);

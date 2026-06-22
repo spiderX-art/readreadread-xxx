@@ -17,11 +17,9 @@ import { isBookStatus } from "../validators/books.validator";
 
 export const bookRoutes = new Hono<AppEnv>();
 
-const LOCAL_USER_ID = "local-user";
-
 bookRoutes.get("/", async (c) => {
   const query = toListBookRowsQuery(c);
-  const books = await listBookRows(c.env.DB, currentUserId(c), query);
+  const books = await listBookRows(c.env.DB, c.get("userId"), query);
 
   return c.json(ok({ items: books.map(toBook), total: books.length }));
 });
@@ -34,19 +32,19 @@ bookRoutes.get("/search", async (c) => {
     minRating: parseOptionalNumber(c.req.query("minRating")),
     maxRating: parseOptionalNumber(c.req.query("maxRating"))
   };
-  const books = await listBookRows(c.env.DB, currentUserId(c), query);
+  const books = await listBookRows(c.env.DB, c.get("userId"), query);
 
   return c.json(ok({ query, items: books.map(toBook), total: books.length }));
 });
 
 bookRoutes.get("/:bookId", async (c) => {
-  const book = await getOwnedBook(c.env.DB, currentUserId(c), c.req.param("bookId"));
+  const book = await getOwnedBook(c.env.DB, c.get("userId"), c.req.param("bookId"));
 
   return c.json(ok(toBook(book)));
 });
 
 bookRoutes.patch("/:bookId", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await getOwnedBook(c.env.DB, userId, bookId);
 
@@ -73,7 +71,7 @@ bookRoutes.patch("/:bookId", async (c) => {
 });
 
 bookRoutes.delete("/:bookId", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await getOwnedBook(c.env.DB, userId, bookId);
   await deleteBookRow(c.env.DB, userId, bookId);
@@ -82,7 +80,7 @@ bookRoutes.delete("/:bookId", async (c) => {
 });
 
 bookRoutes.patch("/:bookId/status", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await getOwnedBook(c.env.DB, userId, bookId);
 
@@ -98,10 +96,6 @@ bookRoutes.patch("/:bookId/status", async (c) => {
   const updated = await getOwnedBook(c.env.DB, userId, bookId);
   return c.json(ok(toBook(updated)));
 });
-
-function currentUserId(c: { req: { header(name: string): string | undefined } }): string {
-  return c.req.header("x-user-id") ?? LOCAL_USER_ID;
-}
 
 async function getOwnedBook(db: D1Database, userId: string, bookId: string): Promise<BookRow> {
   const book = await findBookRow(db, userId, bookId);

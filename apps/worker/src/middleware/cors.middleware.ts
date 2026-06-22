@@ -13,7 +13,7 @@ export const corsMiddleware = cors({
     return c.env?.FRONTEND_ORIGIN || origin;
   },
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "x-user-id"],
   credentials: true
 });
 

@@ -16,10 +16,8 @@ import { fail, ok } from "../utils/response";
 
 export const reviewsRoutes = new Hono<AppEnv>();
 
-const LOCAL_USER_ID = "local-user";
-
 reviewsRoutes.get("/:bookId/drop-reason", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await assertOwnedBook(c.env.DB, userId, bookId);
 
@@ -28,7 +26,7 @@ reviewsRoutes.get("/:bookId/drop-reason", async (c) => {
 });
 
 reviewsRoutes.put("/:bookId/drop-reason", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await assertOwnedBook(c.env.DB, userId, bookId);
 
@@ -61,7 +59,7 @@ reviewsRoutes.put("/:bookId/drop-reason", async (c) => {
 });
 
 reviewsRoutes.get("/:bookId/review", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await assertOwnedBook(c.env.DB, userId, bookId);
 
@@ -70,7 +68,7 @@ reviewsRoutes.get("/:bookId/review", async (c) => {
 });
 
 reviewsRoutes.put("/:bookId/review", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await assertOwnedBook(c.env.DB, userId, bookId);
 
@@ -101,10 +99,6 @@ reviewsRoutes.put("/:bookId/review", async (c) => {
   const row = await findReviewRow(c.env.DB, userId, bookId);
   return c.json(ok(row ? toReview(row) : null));
 });
-
-function currentUserId(c: { req: { header(name: string): string | undefined } }): string {
-  return c.req.header("x-user-id") ?? LOCAL_USER_ID;
-}
 
 async function assertOwnedBook(db: D1Database, userId: string, bookId: string): Promise<void> {
   const book = await findBookRow(db, userId, bookId);

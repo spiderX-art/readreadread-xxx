@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
+import { requireAuth } from "../middleware/auth.middleware";
 import { fail, ok } from "../utils/response";
 
 export const authRoutes = new Hono<AppEnv>();
@@ -33,11 +34,11 @@ authRoutes.get("/baidu/callback", (c) => {
 
 authRoutes.post("/logout", (c) => c.json(ok({ loggedOut: true })));
 
-authRoutes.get("/me", (c) =>
+authRoutes.get("/me", requireAuth, (c) =>
   c.json(
     ok({
-      id: "local-user",
-      displayName: "本地读者"
+      id: c.get("userId"),
+      displayName: c.get("userId")
     })
   )
 );

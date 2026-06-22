@@ -7,6 +7,9 @@ import type { UserRow } from "../../src/db/repositories/user.repo";
 import type { Bindings } from "../../src/env";
 import { app } from "../../src/index";
 
+const TEST_USER_ID = "user-1";
+const authHeaders = { "x-user-id": TEST_USER_ID };
+
 interface ImportTxtApiResult {
   job: {
     id: string;
@@ -32,6 +35,7 @@ describe("TXT import route", () => {
       {
         method: "POST",
         headers: {
+          ...authHeaders,
           "content-type": "application/json"
         },
         body: JSON.stringify({
@@ -68,7 +72,7 @@ describe("TXT import route", () => {
     });
     expect(objects.get(state.books[0].raw_object_key ?? "")).toBe(text);
 
-    const jobResponse = await app.request(`/api/import/jobs/${importBody.data.job.id}`, {}, env);
+    const jobResponse = await app.request(`/api/import/jobs/${importBody.data.job.id}`, { headers: authHeaders }, env);
     const jobBody = (await jobResponse.json()) as ApiResponse<{ status: string; bookId: string }>;
 
     expect(jobResponse.status).toBe(200);
@@ -81,7 +85,11 @@ describe("TXT import route", () => {
       bookId: importBody.data.book.id
     });
 
-    const chaptersResponse = await app.request(`/api/books/${importBody.data.book.id}/chapters`, {}, env);
+    const chaptersResponse = await app.request(
+      `/api/books/${importBody.data.book.id}/chapters`,
+      { headers: authHeaders },
+      env
+    );
     const chaptersBody = (await chaptersResponse.json()) as ApiResponse<PageResult<Chapter>>;
 
     expect(chaptersResponse.status).toBe(200);
@@ -97,7 +105,7 @@ describe("TXT import route", () => {
     const secondChapter = chaptersBody.data.items[1];
     const chapterResponse = await app.request(
       `/api/books/${importBody.data.book.id}/chapters/${secondChapter.id}`,
-      {},
+      { headers: authHeaders },
       env
     );
     const chapterBody = (await chapterResponse.json()) as ApiResponse<ChapterContent>;
@@ -349,6 +357,11 @@ function queryStatement(sql: string, bindings: unknown[], state: TestDatabaseSta
     }
 
     return chapters;
+  }
+
+  if (normalizedSql.includes("from books")) {
+    const [userId, bookId] = bindings as [string, string];
+    return state.books.filter((book) => book.user_id === userId && book.id === bookId);
   }
 
   if (normalizedSql.includes("from import_jobs")) {

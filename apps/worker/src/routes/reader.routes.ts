@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Chapter, ChapterContent, ReadingProgress } from "shared";
+import { findBookRow } from "../db/repositories/book.repo";
 import { findChapterRow, findFirstChapterRow, listChapterRows, type ChapterRow } from "../db/repositories/chapter.repo";
 import {
   findReadingProgressRow,
@@ -14,10 +15,12 @@ import { ok } from "../utils/response";
 
 export const readerRoutes = new Hono<AppEnv>();
 
-const LOCAL_USER_ID = "local-user";
-
 readerRoutes.get("/:bookId/chapters", async (c) => {
-  const chapters = await listChapterRows(c.env.DB, c.req.param("bookId"));
+  const userId = c.get("userId");
+  const bookId = c.req.param("bookId");
+  await assertOwnedBook(c.env.DB, userId, bookId);
+
+  const chapters = await listChapterRows(c.env.DB, bookId);
 
   return c.json(
     ok({
@@ -28,7 +31,11 @@ readerRoutes.get("/:bookId/chapters", async (c) => {
 });
 
 readerRoutes.get("/:bookId/chapters/:chapterId", async (c) => {
-  const chapter = await findChapterRow(c.env.DB, c.req.param("bookId"), c.req.param("chapterId"));
+  const userId = c.get("userId");
+  const bookId = c.req.param("bookId");
+  await assertOwnedBook(c.env.DB, userId, bookId);
+
+  const chapter = await findChapterRow(c.env.DB, bookId, c.req.param("chapterId"));
 
   if (!chapter) {
     throw new AppError(404, "CHAPTER_NOT_FOUND", "章节不存在");
@@ -43,15 +50,24 @@ readerRoutes.get("/:bookId/chapters/:chapterId", async (c) => {
   return c.json(ok(toChapterContent(chapter, content)));
 });
 
-readerRoutes.get("/:bookId/progress", async (c) => c.json(ok(await getProgress(c.env.DB, c.req.param("bookId")))));
+readerRoutes.get("/:bookId/progress", async (c) => {
+  const userId = c.get("userId");
+  const bookId = c.req.param("bookId");
+  await assertOwnedBook(c.env.DB, userId, bookId);
+
+  return c.json(ok(await getProgress(c.env.DB, userId, bookId)));
+});
 
 readerRoutes.post("/:bookId/progress", async (c) => {
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
+  await assertOwnedBook(c.env.DB, userId, bookId);
+
   const body = (await c.req.json().catch(() => ({}))) as Partial<ReadingProgress>;
   const updatedAt = new Date().toISOString();
   const progress: ReadingProgress = {
-    id: progressId(LOCAL_USER_ID, bookId),
-    userId: LOCAL_USER_ID,
+    id: progressId(userId, bookId),
+    userId,
     bookId,
     chapterId: body.chapterId,
     scrollPosition: Number.isFinite(body.scrollPosition) ? Number(body.scrollPosition) : 0,
@@ -92,8 +108,8 @@ function toChapterContent(chapter: ChapterRow, content: string): ChapterContent 
   };
 }
 
-async function getProgress(db: D1Database, bookId: string): Promise<ReadingProgress> {
-  const savedProgress = await findReadingProgressRow(db, LOCAL_USER_ID, bookId);
+async function getProgress(db: D1Database, userId: string, bookId: string): Promise<ReadingProgress> {
+  const savedProgress = await findReadingProgressRow(db, userId, bookId);
 
   if (savedProgress) {
     return toReadingProgress(savedProgress);
@@ -102,14 +118,22 @@ async function getProgress(db: D1Database, bookId: string): Promise<ReadingProgr
   const firstChapter = await findFirstChapterRow(db, bookId);
 
   return {
-    id: progressId(LOCAL_USER_ID, bookId),
-    userId: LOCAL_USER_ID,
+    id: progressId(userId, bookId),
+    userId,
     bookId,
     chapterId: firstChapter?.id,
     scrollPosition: 0,
     progressPercent: 0,
     updatedAt: new Date(0).toISOString()
   };
+}
+
+async function assertOwnedBook(db: D1Database, userId: string, bookId: string): Promise<void> {
+  const book = await findBookRow(db, userId, bookId);
+
+  if (!book) {
+    throw new AppError(404, "BOOK_NOT_FOUND", "书籍不存在");
+  }
 }
 
 function toReadingProgress(row: ReadingProgressRow): ReadingProgress {

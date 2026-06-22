@@ -7,6 +7,9 @@ import type { DropReasonRow, ReviewRow } from "../../src/db/repositories/review.
 import type { Bindings } from "../../src/env";
 import { app } from "../../src/index";
 
+const TEST_USER_ID = "user-1";
+const authHeaders = { "x-user-id": TEST_USER_ID };
+
 interface TestDatabaseState {
   books: BookRow[];
   chapters: ChapterRow[];
@@ -19,7 +22,7 @@ describe("book routes", () => {
   it("reads bookshelf data from D1 and persists rating and review data", async () => {
     const { env, state } = createTestEnv();
 
-    const listResponse = await app.request("/api/books", {}, env);
+    const listResponse = await app.request("/api/books", { headers: authHeaders }, env);
     const listBody = (await listResponse.json()) as ApiResponse<PageResult<Book>>;
 
     expect(listResponse.status).toBe(200);
@@ -34,7 +37,7 @@ describe("book routes", () => {
       chapterCount: 2
     });
 
-    const detailResponse = await app.request("/api/books/book-1", {}, env);
+    const detailResponse = await app.request("/api/books/book-1", { headers: authHeaders }, env);
     const detailBody = (await detailResponse.json()) as ApiResponse<Book>;
 
     expect(detailResponse.status).toBe(200);
@@ -47,7 +50,7 @@ describe("book routes", () => {
       author: "张三"
     });
 
-    const bookshelfSearchResponse = await app.request("/api/books/search?q=灯火", {}, env);
+    const bookshelfSearchResponse = await app.request("/api/books/search?q=灯火", { headers: authHeaders }, env);
     const bookshelfSearchBody = (await bookshelfSearchResponse.json()) as ApiResponse<PageResult<Book>>;
 
     expect(bookshelfSearchResponse.status).toBe(200);
@@ -57,7 +60,7 @@ describe("book routes", () => {
     }
     expect(bookshelfSearchBody.data.items.map((book) => book.id)).toEqual(["book-1"]);
 
-    const fulltextSearchResponse = await app.request("/api/books/book-1/search?q=灯火", {}, env);
+    const fulltextSearchResponse = await app.request("/api/books/book-1/search?q=灯火", { headers: authHeaders }, env);
     const fulltextSearchBody = (await fulltextSearchResponse.json()) as ApiResponse<{
       items: { chapterId: string; context: string }[];
       total: number;
@@ -78,6 +81,7 @@ describe("book routes", () => {
       {
         method: "PUT",
         headers: {
+          ...authHeaders,
           "content-type": "application/json"
         },
         body: JSON.stringify({
@@ -106,6 +110,7 @@ describe("book routes", () => {
       {
         method: "PUT",
         headers: {
+          ...authHeaders,
           "content-type": "application/json"
         },
         body: JSON.stringify({
@@ -133,6 +138,7 @@ describe("book routes", () => {
       {
         method: "PUT",
         headers: {
+          ...authHeaders,
           "content-type": "application/json"
         },
         body: JSON.stringify({
@@ -164,14 +170,14 @@ function createTestEnv() {
     books: [
       {
         id: "book-1",
-        user_id: "local-user",
+        user_id: TEST_USER_ID,
         title: "雨夜灯火",
         author: "张三",
         source_file_id: "fs-1",
         source_path: "/novels/雨夜灯火.txt",
         file_name: "雨夜灯火.txt",
         file_size: 1024,
-        raw_object_key: "users/local-user/books/book-1/raw.txt",
+        raw_object_key: "users/user-1/books/book-1/raw.txt",
         word_count: 1200,
         chapter_count: 2,
         status: "reading",
@@ -187,7 +193,7 @@ function createTestEnv() {
         book_id: "book-1",
         title: "第一章 雨夜",
         chapter_index: 1,
-        object_key: "users/local-user/books/book-1/chapters/1.txt",
+        object_key: "users/user-1/books/book-1/chapters/1.txt",
         word_count: 500,
         created_at: now,
         updated_at: now
@@ -197,7 +203,7 @@ function createTestEnv() {
         book_id: "book-1",
         title: "第二章 灯火",
         chapter_index: 2,
-        object_key: "users/local-user/books/book-1/chapters/2.txt",
+        object_key: "users/user-1/books/book-1/chapters/2.txt",
         word_count: 700,
         created_at: now,
         updated_at: now
@@ -208,8 +214,8 @@ function createTestEnv() {
     dropReasons: []
   };
   const objects = new Map([
-    ["users/local-user/books/book-1/chapters/1.txt", "雨声很密。"],
-    ["users/local-user/books/book-1/chapters/2.txt", "灯火从窗里亮起来。"]
+    ["users/user-1/books/book-1/chapters/1.txt", "雨声很密。"],
+    ["users/user-1/books/book-1/chapters/2.txt", "灯火从窗里亮起来。"]
   ]);
   const env: Bindings = {
     DB: createD1Mock(state),

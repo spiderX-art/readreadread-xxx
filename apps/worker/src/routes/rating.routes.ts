@@ -11,10 +11,8 @@ import { isValidRatingValue } from "../validators/rating.validator";
 
 export const ratingRoutes = new Hono<AppEnv>();
 
-const LOCAL_USER_ID = "local-user";
-
 ratingRoutes.get("/:bookId/rating", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await assertOwnedBook(c.env.DB, userId, bookId);
 
@@ -23,7 +21,7 @@ ratingRoutes.get("/:bookId/rating", async (c) => {
 });
 
 ratingRoutes.put("/:bookId/rating", async (c) => {
-  const userId = currentUserId(c);
+  const userId = c.get("userId");
   const bookId = c.req.param("bookId");
   await assertOwnedBook(c.env.DB, userId, bookId);
 
@@ -64,10 +62,6 @@ ratingRoutes.put("/:bookId/rating", async (c) => {
   const saved = await findRatingRow(c.env.DB, userId, bookId);
   return c.json(ok(saved ? toRating(saved) : null));
 });
-
-function currentUserId(c: { req: { header(name: string): string | undefined } }): string {
-  return c.req.header("x-user-id") ?? LOCAL_USER_ID;
-}
 
 async function assertOwnedBook(db: D1Database, userId: string, bookId: string): Promise<void> {
   const book = await findBookRow(db, userId, bookId);

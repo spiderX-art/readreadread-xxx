@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ApiResponse, Chapter, ChapterContent, PageResult, ReadingProgress } from "shared";
 import type { Bindings } from "../../src/env";
+import type { BookRow } from "../../src/db/repositories/book.repo";
 import type { ChapterRow } from "../../src/db/repositories/chapter.repo";
 import type { ReadingProgressRow } from "../../src/db/repositories/reading-progress.repo";
 import { app } from "../../src/index";
+
+const TEST_USER_ID = "user-1";
+const authHeaders = { "x-user-id": TEST_USER_ID };
 
 interface ProgressSaveResult {
   saved: boolean;
@@ -13,7 +17,7 @@ interface ProgressSaveResult {
 describe("reader routes", () => {
   it("lists chapter metadata from D1 without chapter content", async () => {
     const { env, bucketGet } = createTestEnv();
-    const response = await app.request("/api/books/book-1/chapters", {}, env);
+    const response = await app.request("/api/books/book-1/chapters", { headers: authHeaders }, env);
     const body = (await response.json()) as ApiResponse<PageResult<Chapter>>;
 
     expect(response.status).toBe(200);
@@ -28,7 +32,7 @@ describe("reader routes", () => {
       bookId: "book-1",
       title: "第一章 雨夜",
       chapterIndex: 1,
-      objectKey: "users/local-user/books/book-1/chapters/1.txt",
+      objectKey: "users/user-1/books/book-1/chapters/1.txt",
       wordCount: 1200
     });
     expect("content" in body.data.items[0]).toBe(false);
@@ -37,7 +41,7 @@ describe("reader routes", () => {
 
   it("returns chapter metadata from D1, content from R2, and persists reading progress", async () => {
     const { env, readingProgress } = createTestEnv();
-    const chapterResponse = await app.request("/api/books/book-1/chapters/chapter-2", {}, env);
+    const chapterResponse = await app.request("/api/books/book-1/chapters/chapter-2", { headers: authHeaders }, env);
     const chapterBody = (await chapterResponse.json()) as ApiResponse<ChapterContent>;
 
     expect(chapterResponse.status).toBe(200);
@@ -56,6 +60,7 @@ describe("reader routes", () => {
       "/api/books/book-1/progress",
       {
         method: "POST",
+        headers: authHeaders,
         body: JSON.stringify({
           chapterId: "chapter-2",
           scrollPosition: 0,
@@ -81,13 +86,13 @@ describe("reader routes", () => {
     });
     expect(readingProgress).toHaveLength(1);
     expect(readingProgress[0]).toMatchObject({
-      user_id: "local-user",
+      user_id: TEST_USER_ID,
       book_id: "book-1",
       chapter_id: "chapter-2",
       progress_percent: 100
     });
 
-    const savedProgressResponse = await app.request("/api/books/book-1/progress", {}, env);
+    const savedProgressResponse = await app.request("/api/books/book-1/progress", { headers: authHeaders }, env);
     const savedProgressBody = (await savedProgressResponse.json()) as ApiResponse<ReadingProgress>;
 
     expect(savedProgressResponse.status).toBe(200);
@@ -104,7 +109,7 @@ describe("reader routes", () => {
 
   it("uses the first D1 chapter for default reading progress", async () => {
     const { env } = createTestEnv();
-    const response = await app.request("/api/books/book-default/progress", {}, env);
+    const response = await app.request("/api/books/book-default/progress", { headers: authHeaders }, env);
     const body = (await response.json()) as ApiResponse<ReadingProgress>;
 
     expect(response.status).toBe(200);
@@ -121,7 +126,7 @@ describe("reader routes", () => {
 
   it("returns 404 when chapter content is missing from R2", async () => {
     const { env } = createTestEnv(new Map());
-    const response = await app.request("/api/books/book-1/chapters/chapter-1", {}, env);
+    const response = await app.request("/api/books/book-1/chapters/chapter-1", { headers: authHeaders }, env);
     const body = (await response.json()) as ApiResponse<unknown>;
 
     expect(response.status).toBe(404);
@@ -136,13 +141,52 @@ describe("reader routes", () => {
 
 const now = "2026-01-01T00:00:00.000Z";
 
+const books: BookRow[] = [
+  {
+    id: "book-1",
+    user_id: TEST_USER_ID,
+    title: "雨夜灯火",
+    author: "张三",
+    source_file_id: "fs-1",
+    source_path: "/novels/雨夜灯火.txt",
+    file_name: "雨夜灯火.txt",
+    file_size: 1024,
+    raw_object_key: "users/user-1/books/book-1/raw/source.txt",
+    word_count: 2700,
+    chapter_count: 2,
+    status: "reading",
+    rating: null,
+    created_at: now,
+    updated_at: now,
+    last_read_at: null
+  },
+  {
+    id: "book-default",
+    user_id: TEST_USER_ID,
+    title: "默认书籍",
+    author: null,
+    source_file_id: "fs-default",
+    source_path: "/novels/default.txt",
+    file_name: "default.txt",
+    file_size: 512,
+    raw_object_key: "users/user-1/books/book-default/raw/source.txt",
+    word_count: 800,
+    chapter_count: 1,
+    status: "not_started",
+    rating: null,
+    created_at: now,
+    updated_at: now,
+    last_read_at: null
+  }
+];
+
 const rows: ChapterRow[] = [
   {
     id: "chapter-1",
     book_id: "book-1",
     title: "第一章 雨夜",
     chapter_index: 1,
-    object_key: "users/local-user/books/book-1/chapters/1.txt",
+    object_key: "users/user-1/books/book-1/chapters/1.txt",
     word_count: 1200,
     created_at: now,
     updated_at: now
@@ -152,7 +196,7 @@ const rows: ChapterRow[] = [
     book_id: "book-1",
     title: "第二章 灯火",
     chapter_index: 2,
-    object_key: "users/local-user/books/book-1/chapters/2.txt",
+    object_key: "users/user-1/books/book-1/chapters/2.txt",
     word_count: 1500,
     created_at: now,
     updated_at: now
@@ -162,7 +206,7 @@ const rows: ChapterRow[] = [
     book_id: "book-default",
     title: "默认第一章",
     chapter_index: 1,
-    object_key: "users/local-user/books/book-default/chapters/1.txt",
+    object_key: "users/user-1/books/book-default/chapters/1.txt",
     word_count: 800,
     created_at: now,
     updated_at: now
@@ -184,7 +228,7 @@ function createTestEnv(contentByKey = new Map(rows.map((row) => [row.object_key,
   });
 
   const env: Bindings = {
-    DB: createD1Mock(rows, readingProgress),
+    DB: createD1Mock(books, rows, readingProgress),
     BOOK_BUCKET: {
       get: bucketGet
     } as unknown as R2Bucket,
@@ -195,7 +239,7 @@ function createTestEnv(contentByKey = new Map(rows.map((row) => [row.object_key,
   return { env, bucketGet, readingProgress };
 }
 
-function createD1Mock(chapters: ChapterRow[], readingProgress: ReadingProgressRow[]): D1Database {
+function createD1Mock(books: BookRow[], chapters: ChapterRow[], readingProgress: ReadingProgressRow[]): D1Database {
   return {
     prepare: (sql: string) => ({
       bind: (...bindings: unknown[]) => ({
@@ -207,12 +251,12 @@ function createD1Mock(chapters: ChapterRow[], readingProgress: ReadingProgressRo
           };
         },
         all: async <T>() => ({
-          results: queryStatement(sql, bindings, chapters, readingProgress) as T[],
+          results: queryStatement(sql, bindings, books, chapters, readingProgress) as T[],
           success: true,
           meta: {}
         }),
         first: async <T>() => {
-          const matches = queryStatement(sql, bindings, chapters, readingProgress);
+          const matches = queryStatement(sql, bindings, books, chapters, readingProgress);
           return (matches[0] ?? null) as T | null;
         }
       })
@@ -261,10 +305,16 @@ function runStatement(sql: string, bindings: unknown[], readingProgress: Reading
 function queryStatement(
   sql: string,
   bindings: unknown[],
+  books: BookRow[],
   chapters: ChapterRow[],
   readingProgress: ReadingProgressRow[]
 ): unknown[] {
   const normalizedSql = normalizeSql(sql);
+
+  if (normalizedSql.includes("from books")) {
+    const [userId, bookId] = bindings as [string, string];
+    return books.filter((book) => book.user_id === userId && book.id === bookId);
+  }
 
   if (normalizedSql.includes("from reading_progress")) {
     const [userId, bookId] = bindings as [string, string];
