@@ -1,16 +1,18 @@
 :root {
   color-scheme: light;
-  --color-ink: #17201d;
-  --color-muted: #66736f;
-  --color-page: #f4f8f5;
+  --color-ink: #1f2723;
+  --color-muted: #747a76;
+  --color-page: #faf9f6;
+  --color-nav: #f1eee8;
   --color-panel: #ffffff;
-  --color-line: #d8e4df;
-  --color-green: #2f5d50;
-  --color-blue: #2b6b8f;
-  --color-coral: #bb4d3e;
-  --color-gold: #b8862f;
-  --shadow-soft: 0 18px 50px rgb(31 59 49 / 12%);
-  font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+  --color-line: #e0dbd2;
+  --color-green: #1f3d33;
+  --color-green-soft: #e7eee9;
+  --color-blue: #536f84;
+  --color-coral: #a95042;
+  --color-gold: #a97b34;
+  --shadow-soft: none;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   background: var(--color-page);
   color: var(--color-ink);
 }
@@ -23,9 +25,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    linear-gradient(135deg, rgb(47 93 80 / 10%), transparent 36%),
-    linear-gradient(180deg, #f8fbf9 0%, var(--color-page) 100%);
+  background: var(--color-page);
 }
 
 button,
@@ -42,7 +42,8 @@ a {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 270px minmax(0, 1fr);
+  overflow-x: hidden;
   min-height: 100vh;
 }
 
@@ -50,13 +51,13 @@ a {
   position: sticky;
   top: 0;
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: 28px;
+  gap: 22px;
   height: 100vh;
-  padding: 28px 22px;
+  padding: 28px 20px;
   border-right: 1px solid var(--color-line);
-  background: rgb(255 255 255 / 72%);
-  backdrop-filter: blur(18px);
+  background: var(--color-nav);
 }
 
 .brand {
@@ -67,8 +68,8 @@ a {
 
 .brand-mark {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   border-radius: 8px;
   background: var(--color-green);
@@ -83,31 +84,65 @@ a {
 
 .brand small {
   color: var(--color-muted);
-  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
-  font-size: 0.76rem;
+  font-size: 0.9rem;
+  letter-spacing: 0;
 }
 
 .nav-links {
   display: grid;
-  gap: 8px;
+  min-width: 0;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-line);
 }
 
 .nav-links a {
-  padding: 10px 12px;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
   border-radius: 8px;
-  color: var(--color-muted);
-  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+.nav-links span {
+  width: 22px;
+  color: currentColor;
+  text-align: center;
 }
 
 .nav-links a.router-link-active {
-  background: #e5f0ec;
-  color: var(--color-green);
+  background: var(--color-green);
+  color: #fff;
   font-weight: 700;
 }
 
+.nav-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+  margin: auto -20px 0;
+  padding: 22px 20px 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.nav-stats p,
+.nav-stats small {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.nav-stats strong {
+  font-size: 1.6rem;
+}
+
 .app-main {
-  width: min(1180px, 100%);
-  padding: 36px;
+  width: min(1120px, 100%);
+  min-width: 0;
+  padding: 56px 42px;
 }
 
 .page-header {
@@ -120,7 +155,7 @@ a {
 
 .page-header h1 {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 4.5rem);
+  font-size: clamp(2rem, 4vw, 3.25rem);
   line-height: 1;
   letter-spacing: 0;
 }
@@ -202,7 +237,7 @@ a {
   min-height: 42px;
   align-items: center;
   justify-content: center;
-  border: 0;
+  border: 1px solid var(--color-green);
   border-radius: 8px;
   padding: 0 16px;
   background: var(--color-green);
@@ -212,8 +247,9 @@ a {
 }
 
 .button.secondary {
-  background: #e5f0ec;
-  color: var(--color-green);
+  border-color: var(--color-line);
+  background: #fff;
+  color: var(--color-ink);
 }
 
 .button:disabled {
@@ -237,8 +273,8 @@ a {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
 }
 
 .form-grid {
@@ -259,22 +295,278 @@ a {
   color: var(--color-muted);
 }
 
-.book-card {
+.bookshelf-page {
   display: grid;
-  min-height: 210px;
-  padding: 18px;
+  gap: 28px;
+}
+
+.bookshelf-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.bookshelf-header h1 {
+  margin: 0;
+  font-size: clamp(2.6rem, 5vw, 3.7rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.bookshelf-header p {
+  margin: 12px 0 0;
+  color: var(--color-muted);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.add-book-button {
+  min-width: 126px;
+  border-color: var(--color-line);
+  background: #fff;
+  color: var(--color-ink);
+  font-weight: 900;
+}
+
+.sync-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fff;
+}
+
+.sync-strip strong,
+.sync-strip span {
+  display: block;
+}
+
+.sync-strip span {
+  margin-top: 3px;
+  color: var(--color-muted);
+}
+
+.sync-strip-error {
+  border-color: rgb(169 80 66 / 35%);
+}
+
+.bookshelf-controls {
+  display: grid;
   gap: 14px;
+}
+
+.book-search {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 0 16px;
+  background: #fff;
+  color: var(--color-muted);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.book-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.book-search input::placeholder {
+  color: var(--color-muted);
+}
+
+.pill-row {
+  display: flex;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-pill,
+.clear-filter-button {
+  min-height: 42px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #f2eee7;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.filter-pill.active {
+  border-color: var(--color-green);
+  background: var(--color-green);
+  color: #fff;
+}
+
+.filter-pill span {
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.facet-label {
+  color: var(--color-muted);
+  font-weight: 900;
+}
+
+.filter-controls {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(180px, 260px);
+  gap: 14px;
+  align-items: center;
+}
+
+.rating-filter,
+.tag-select-filter {
+  display: grid;
+  min-height: 52px;
+  align-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.rating-filter {
+  grid-template-columns: auto minmax(120px, 1fr) 72px;
+  gap: 14px;
+  padding: 0 14px;
+}
+
+.rating-filter input {
+  width: 100%;
+  accent-color: var(--color-green);
+}
+
+.rating-filter strong {
+  color: var(--color-ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tag-select-filter {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.tag-select-filter select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+.clear-filter-button {
+  width: max-content;
+  min-height: auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.book-card {
+  position: relative;
+  display: flex;
+  min-height: 300px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 24px 22px;
 }
 
 .book-card h2 {
   margin: 0;
+  padding-right: 92px;
   font-size: 1.35rem;
+  line-height: 1.25;
 }
 
 .book-meta {
   color: var(--color-muted);
-  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
   line-height: 1.7;
+}
+
+.book-card-main {
+  display: grid;
+  gap: 6px;
+}
+
+.book-author,
+.book-source {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.book-source {
+  margin-top: auto;
+}
+
+.status-badge {
+  position: absolute;
+  top: 22px;
+  right: 20px;
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #f7f5f1;
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+.status-badge::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.status-reading {
+  color: var(--color-green);
+}
+
+.status-finished,
+.status-masterpiece,
+.status-favorite {
+  color: var(--color-gold);
+}
+
+.status-dropped,
+.status-avoid {
+  color: var(--color-coral);
+}
+
+.rating-stars {
+  color: var(--color-gold);
+  font-size: 1.15rem;
+  letter-spacing: 0;
+}
+
+.rating-stars .muted {
+  color: #d9d4ca;
 }
 
 .tag-list {
@@ -284,17 +576,37 @@ a {
 }
 
 .tag {
-  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
   padding: 5px 10px;
-  background: #edf3f7;
-  color: var(--color-blue);
-  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
-  font-size: 0.82rem;
+  background: #f2eee7;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .book-tag {
-  background: #e8f1ec;
-  color: var(--color-green);
+  color: var(--color-muted);
+}
+
+.book-detail-link {
+  width: 100%;
+  margin-top: 8px;
+  font-weight: 900;
+}
+
+.search-hit-card {
+  display: block;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.search-hit-card:hover,
+.search-hit-card:focus-visible {
+  border-color: var(--color-green);
+  outline: 0;
+  transform: translateY(-1px);
 }
 
 .editable-tag-list {
@@ -415,18 +727,90 @@ a {
     border-bottom: 1px solid var(--color-line);
   }
 
+  .brand {
+    padding: 4px 2px;
+  }
+
   .nav-links {
     grid-auto-flow: column;
     grid-auto-columns: max-content;
+    padding-top: 12px;
     overflow-x: auto;
   }
 
+  .nav-links a {
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  .nav-stats {
+    display: none;
+  }
+
   .app-main {
-    padding: 20px 14px 32px;
+    padding: 24px 14px 36px;
   }
 
   .page-header {
     display: block;
+  }
+
+  .bookshelf-page {
+    gap: 20px;
+  }
+
+  .bookshelf-header {
+    display: grid;
+  }
+
+  .bookshelf-header h1 {
+    font-size: 2.8rem;
+  }
+
+  .add-book-button {
+    width: 100%;
+  }
+
+  .sync-strip {
+    display: grid;
+  }
+
+  .book-search {
+    min-height: 52px;
+  }
+
+  .pill-row {
+    flex-wrap: nowrap;
+    margin-right: -14px;
+    padding-right: 14px;
+    overflow-x: auto;
+  }
+
+  .filter-pill {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .filter-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .rating-filter {
+    grid-template-columns: auto minmax(110px, 1fr) 68px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .book-card {
+    min-height: 270px;
+    padding: 22px 18px 18px;
+  }
+
+  .book-card h2 {
+    padding-right: 82px;
   }
 
   .reader-toolbar {

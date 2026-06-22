@@ -1,4 +1,4 @@
-import type { Book, ImportPreview } from "shared";
+import type { Book, ImportPreview, SyncImportResult } from "shared";
 import { apiPost } from "./api";
 
 export interface ImportTxtRequest {
@@ -25,4 +25,8 @@ export function previewTxtImport(body: ImportTxtRequest): Promise<ImportPreview>
 
 export function importTxtFromNetdisk(body: ImportTxtRequest): Promise<ImportTxtResult> {
   return apiPost<ImportTxtResult>("/api/import/txt", body);
+}
+
+export function syncPreviewImports(path = "/小说"): Promise<SyncImportResult> {
+  return apiPost<SyncImportResult>("/api/import/sync-preview", { path });
 }

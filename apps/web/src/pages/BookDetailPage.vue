@@ -81,37 +81,8 @@
         <h2>书评</h2>
         <div class="form-grid">
           <input v-model="reviewForm.shortComment" class="text-input" placeholder="短评" />
-          <textarea v-model="reviewForm.fullReview" class="text-input textarea-input" placeholder="完整书评" />
-          <input v-model="reviewForm.recommendReason" class="text-input" placeholder="推荐理由" />
-          <input v-model="reviewForm.warningPoint" class="text-input" placeholder="避雷点" />
-          <input v-model="reviewForm.targetReaders" class="text-input" placeholder="适合读者" />
-          <select v-model="reviewForm.recommended" class="select-input">
-            <option value="">是否推荐</option>
-            <option value="true">推荐</option>
-            <option value="false">不推荐</option>
-          </select>
           <button class="button secondary" type="button" :disabled="savingReview" @click="saveReview">
             {{ savingReview ? "保存中" : "保存书评" }}
-          </button>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>弃读原因</h2>
-        <div class="form-grid">
-          <input v-model="dropReasonForm.reason" class="text-input" placeholder="弃读原因" />
-          <textarea v-model="dropReasonForm.note" class="text-input textarea-input" placeholder="补充说明" />
-          <label class="check-row">
-            <input v-model="dropReasonForm.mayReadLater" type="checkbox" />
-            以后可能再读
-          </label>
-          <button
-            class="button secondary"
-            type="button"
-            :disabled="savingDropReason || !dropReasonForm.reason.trim()"
-            @click="saveDropReasonForm"
-          >
-            {{ savingDropReason ? "保存中" : "保存弃读原因" }}
           </button>
         </div>
       </section>
@@ -136,7 +107,7 @@ import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { TAG_TYPES, type BookStatus, type Tag, type TagType } from "shared";
 import RatingGrid from "../components/rating/RatingGrid.vue";
-import { getBookReview, getDropReason, saveBookReview, saveDropReason, updateBookStatus } from "../services/books.api";
+import { getBookReview, saveBookReview, updateBookStatus } from "../services/books.api";
 import { attachTagToBook, createTag, detachTagFromBook, listTags } from "../services/tags.api";
 import { useBooksStore } from "../stores/books.store";
 import { bookStatusLabels } from "../utils/format";
@@ -150,7 +121,6 @@ const loading = ref(false);
 const error = ref<string>();
 const savingStatus = ref(false);
 const savingReview = ref(false);
-const savingDropReason = ref(false);
 const savingTag = ref(false);
 const deleting = ref(false);
 const confirmingDelete = ref(false);
@@ -162,17 +132,7 @@ const selectedTagId = ref("");
 const newTagName = ref("");
 const newTagType = ref<TagType>("custom");
 const reviewForm = reactive({
-  shortComment: "",
-  fullReview: "",
-  recommendReason: "",
-  warningPoint: "",
-  recommended: "" as "" | "true" | "false",
-  targetReaders: ""
-});
-const dropReasonForm = reactive({
-  reason: "",
-  note: "",
-  mayReadLater: false
+  shortComment: ""
 });
 const tagTypeLabels: Record<TagType, string> = {
   genre: "题材",
@@ -209,16 +169,8 @@ async function loadDetail() {
 
   try {
     await booksStore.fetchBook(bookId.value);
-    const [review, dropReason, tagResult] = await Promise.all([getBookReview(bookId.value), getDropReason(bookId.value), listTags()]);
+    const [review, tagResult] = await Promise.all([getBookReview(bookId.value), listTags()]);
     reviewForm.shortComment = review?.shortComment ?? "";
-    reviewForm.fullReview = review?.fullReview ?? "";
-    reviewForm.recommendReason = review?.recommendReason ?? "";
-    reviewForm.warningPoint = review?.warningPoint ?? "";
-    reviewForm.recommended = review?.recommended === undefined ? "" : review.recommended ? "true" : "false";
-    reviewForm.targetReaders = review?.targetReaders ?? "";
-    dropReasonForm.reason = dropReason?.reason ?? "";
-    dropReasonForm.note = dropReason?.note ?? "";
-    dropReasonForm.mayReadLater = dropReason?.mayReadLater ?? false;
     tags.value = tagResult.items;
     selectedTagId.value = "";
     newTagName.value = "";
@@ -265,36 +217,13 @@ async function saveReview() {
 
   try {
     await saveBookReview(bookId.value, {
-      shortComment: reviewForm.shortComment,
-      fullReview: reviewForm.fullReview,
-      recommendReason: reviewForm.recommendReason,
-      warningPoint: reviewForm.warningPoint,
-      recommended: reviewForm.recommended === "" ? undefined : reviewForm.recommended === "true",
-      targetReaders: reviewForm.targetReaders
+      shortComment: reviewForm.shortComment
     });
     showSuccess("书评已保存");
   } catch (saveError) {
     showError(saveError, "书评保存失败");
   } finally {
     savingReview.value = false;
-  }
-}
-
-async function saveDropReasonForm() {
-  savingDropReason.value = true;
-  clearActionFeedback();
-
-  try {
-    await saveDropReason(bookId.value, {
-      reason: dropReasonForm.reason,
-      note: dropReasonForm.note,
-      mayReadLater: dropReasonForm.mayReadLater
-    });
-    showSuccess("弃读原因已保存");
-  } catch (saveError) {
-    showError(saveError, "弃读原因保存失败");
-  } finally {
-    savingDropReason.value = false;
   }
 }
 

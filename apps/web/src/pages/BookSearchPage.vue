@@ -17,11 +17,20 @@
     <p v-if="error" class="error-text">{{ error }}</p>
 
     <div v-else-if="hits.length" class="grid">
-      <article v-for="hit in hits" :key="`${hit.chapterId}-${hit.position}`" class="panel">
+      <RouterLink
+        v-for="hit in hits"
+        :key="`${hit.chapterId}-${hit.position}`"
+        class="panel search-hit-card"
+        :to="{
+          name: 'reader',
+          params: { bookId, chapterId: hit.chapterId },
+          query: { position: String(hit.position), q: keyword.trim() }
+        }"
+      >
         <h2>{{ hit.chapterTitle }}</h2>
         <p class="book-meta">位置 {{ hit.position }}</p>
         <p>{{ hit.context }}</p>
-      </article>
+      </RouterLink>
     </div>
 
     <EmptyState v-else title="暂无结果" description="输入关键词后会从 R2 章节正文中检索。" />

@@ -42,7 +42,7 @@ export function getBookReview(bookId: string): Promise<Review | null> {
 
 export function saveBookReview(
   bookId: string,
-  review: Partial<Pick<Review, "shortComment" | "fullReview" | "recommendReason" | "warningPoint" | "recommended" | "targetReaders">>
+  review: Partial<Pick<Review, "shortComment">>
 ): Promise<Review | null> {
   return apiPut<Review | null>(`/api/books/${encodeURIComponent(bookId)}/review`, review);
 }

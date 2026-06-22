@@ -14,14 +14,7 @@ export const bookStatusLabels: Record<BookStatus, string> = {
 
 export const ratingFieldLabels: Record<RatingField, string> = {
   overall: "总评",
-  plot: "剧情",
-  writing: "文笔",
-  character: "人物",
-  pacing: "节奏",
-  worldbuilding: "世界观",
-  satisfaction: "爽感",
-  endingStability: "后期稳定性",
-  rereadValue: "重读价值"
+  writing: "文笔"
 };
 
 export function formatFileSize(bytes: number): string {

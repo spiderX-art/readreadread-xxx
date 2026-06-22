@@ -6,6 +6,7 @@ import type { AppEnv } from "../env";
 import { downloadBaiduTxtFile } from "../services/baidu/baidu-file.service";
 import { getValidBaiduAccessToken } from "../services/baidu/baidu-token.service";
 import { parseTxtChapters } from "../services/import/chapter-parser.service";
+import { syncPreviewImports } from "../services/import/sync-import.service";
 import { importTxtBook, previewTxtImport } from "../services/import/txt-import.service";
 import { AppError } from "../utils/errors";
 import { fail, ok } from "../utils/response";
@@ -22,7 +23,21 @@ interface ImportPreviewRequest {
   author?: string;
 }
 
+interface SyncPreviewRequest {
+  path?: string;
+}
+
 export const importRoutes = new Hono<AppEnv>();
+
+importRoutes.post("/sync-preview", async (c) => {
+  const body = (await c.req.json<SyncPreviewRequest>().catch(() => ({}))) as SyncPreviewRequest;
+  const result = await syncPreviewImports(c.env.DB, c.env.BOOK_BUCKET, c.env, {
+    userId: c.get("userId"),
+    path: body.path
+  });
+
+  return c.json(ok(result));
+});
 
 importRoutes.post("/preview", async (c) => {
   const body = (await c.req.json<ImportPreviewRequest>().catch(() => ({}))) as ImportPreviewRequest;

@@ -1,14 +1,4 @@
-export const RATING_FIELDS = [
-  "overall",
-  "plot",
-  "writing",
-  "character",
-  "pacing",
-  "worldbuilding",
-  "satisfaction",
-  "endingStability",
-  "rereadValue"
-] as const;
+export const RATING_FIELDS = ["overall", "writing"] as const;
 
 export type RatingField = (typeof RATING_FIELDS)[number];
 

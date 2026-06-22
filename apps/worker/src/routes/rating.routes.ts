@@ -43,14 +43,7 @@ ratingRoutes.put("/:bookId/rating", async (c) => {
     userId,
     bookId,
     overall: body.overall,
-    plot: body.plot,
     writing: body.writing,
-    character: body.character,
-    pacing: body.pacing,
-    worldbuilding: body.worldbuilding,
-    satisfaction: body.satisfaction,
-    endingStability: body.endingStability,
-    rereadValue: body.rereadValue,
     createdAt: now,
     updatedAt: now
   });

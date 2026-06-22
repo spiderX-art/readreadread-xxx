@@ -63,6 +63,7 @@ const error = ref<string>();
 
 const bookId = computed(() => routeParam(route.params.bookId) ?? "");
 const chapterId = computed(() => routeParam(route.params.chapterId));
+const searchPosition = computed(() => routeNumberQuery(route.query.position));
 const currentChapterIndex = computed(() => chapters.value.findIndex((chapter) => chapter.id === currentChapter.value?.id));
 const hasPreviousChapter = computed(() => currentChapterIndex.value > 0);
 const hasNextChapter = computed(() => currentChapterIndex.value >= 0 && currentChapterIndex.value < chapters.value.length - 1);
@@ -81,7 +82,7 @@ let hasPendingScrollSave = false;
 let isRestoringScroll = false;
 
 watch(
-  [bookId, chapterId],
+  [bookId, chapterId, searchPosition],
   async () => {
     await flushProgressSave();
     await loadReader();
@@ -133,7 +134,8 @@ async function loadReader(): Promise<void> {
       return;
     }
 
-    await restoreScrollPosition(savedProgress?.chapterId === selectedChapterId ? savedProgress.scrollPosition : 0);
+    const savedScrollPosition = savedProgress?.chapterId === selectedChapterId ? savedProgress.scrollPosition : 0;
+    await restoreScrollPosition(() => getSearchResultScrollPosition(currentChapter.value?.content ?? "", searchPosition.value) ?? savedScrollPosition);
     void recordProgress();
   } catch (cause) {
     if (requestId === loadRequestId) {
@@ -266,10 +268,11 @@ async function flushProgressSave(): Promise<void> {
   }
 }
 
-async function restoreScrollPosition(scrollPosition: number): Promise<void> {
+async function restoreScrollPosition(scrollPosition: number | (() => number)): Promise<void> {
   isRestoringScroll = true;
   await nextTick();
-  window.scrollTo({ top: Math.max(0, Math.round(scrollPosition)) });
+  const resolvedScrollPosition = typeof scrollPosition === "function" ? scrollPosition() : scrollPosition;
+  window.scrollTo({ top: Math.max(0, Math.round(resolvedScrollPosition)) });
   await waitForNextFrame();
   updateLocalProgress();
   isRestoringScroll = false;
@@ -316,11 +319,37 @@ function waitForNextFrame(): Promise<void> {
   });
 }
 
+function getSearchResultScrollPosition(content: string, position: number | undefined): number | undefined {
+  if (position === undefined || !content.length) {
+    return undefined;
+  }
+
+  const maxScrollPosition = getMaxScrollPosition();
+
+  if (maxScrollPosition <= 0) {
+    return 0;
+  }
+
+  const ratio = Math.min(1, Math.max(0, position / content.length));
+  return Math.max(0, Math.round(maxScrollPosition * ratio) - 120);
+}
+
 function routeParam(value: unknown): string | undefined {
   if (Array.isArray(value)) {
     return routeParam(value[0]);
   }
 
   return typeof value === "string" ? value : undefined;
+}
+
+function routeNumberQuery(value: unknown): number | undefined {
+  const rawValue = routeParam(value);
+
+  if (rawValue === undefined) {
+    return undefined;
+  }
+
+  const parsedValue = Number(rawValue);
+  return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : undefined;
 }
 </script>

@@ -139,7 +139,7 @@ describe("book routes", () => {
         },
         body: JSON.stringify({
           overall: 8.5,
-          plot: 8
+          writing: 8
         })
       },
       env
@@ -154,7 +154,7 @@ describe("book routes", () => {
     expect(ratingBody.data).toMatchObject({
       bookId: "book-1",
       overall: 8.5,
-      plot: 8
+      writing: 8
     });
     expect(state.books[0].rating).toBe(8.5);
 
@@ -167,8 +167,7 @@ describe("book routes", () => {
           "content-type": "application/json"
         },
         body: JSON.stringify({
-          shortComment: "值得读",
-          recommended: true
+          shortComment: "值得读"
         })
       },
       env
@@ -182,8 +181,7 @@ describe("book routes", () => {
     }
     expect(reviewBody.data).toMatchObject({
       bookId: "book-1",
-      shortComment: "值得读",
-      recommended: true
+      shortComment: "值得读"
     });
 
     const dropReasonResponse = await app.request(
