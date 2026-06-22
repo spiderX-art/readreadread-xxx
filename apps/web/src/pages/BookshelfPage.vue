@@ -18,8 +18,11 @@
       </select>
     </div>
 
-    <div v-if="filteredBooks.length" class="grid">
-      <BookCard v-for="book in filteredBooks" :key="book.id" :book="book" />
+    <p v-if="booksStore.loading" class="muted">正在加载书架...</p>
+    <p v-else-if="booksStore.error" class="error-text">{{ booksStore.error }}</p>
+
+    <div v-else-if="books.length" class="grid">
+      <BookCard v-for="book in books" :key="book.id" :book="book" />
     </div>
 
     <EmptyState
@@ -33,7 +36,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
+import type { BookStatus } from "shared";
 import BookCard from "../components/book/BookCard.vue";
 import EmptyState from "../components/common/EmptyState.vue";
 import { useBooksStore } from "../stores/books.store";
@@ -42,5 +46,16 @@ const booksStore = useBooksStore();
 const keyword = ref("");
 const status = ref("");
 
-const filteredBooks = computed(() => booksStore.search(keyword.value, status.value));
+const books = computed(() => booksStore.books);
+
+watch(
+  [keyword, status],
+  () => {
+    void booksStore.fetchBooks({
+      q: keyword.value.trim() || undefined,
+      status: (status.value || undefined) as BookStatus | undefined
+    });
+  },
+  { immediate: true }
+);
 </script>

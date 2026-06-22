@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ApiResponse, Chapter, ChapterContent, PageResult, ReadingProgress } from "shared";
 import type { Bindings } from "../../src/env";
 import type { ChapterRow } from "../../src/db/repositories/chapter.repo";
+import type { ReadingProgressRow } from "../../src/db/repositories/reading-progress.repo";
 import { app } from "../../src/index";
 
 interface ProgressSaveResult {
@@ -35,7 +36,7 @@ describe("reader routes", () => {
   });
 
   it("returns chapter metadata from D1, content from R2, and persists reading progress", async () => {
-    const { env } = createTestEnv();
+    const { env, readingProgress } = createTestEnv();
     const chapterResponse = await app.request("/api/books/book-1/chapters/chapter-2", {}, env);
     const chapterBody = (await chapterResponse.json()) as ApiResponse<ChapterContent>;
 
@@ -77,6 +78,27 @@ describe("reader routes", () => {
         chapterId: "chapter-2",
         progressPercent: 100
       }
+    });
+    expect(readingProgress).toHaveLength(1);
+    expect(readingProgress[0]).toMatchObject({
+      user_id: "local-user",
+      book_id: "book-1",
+      chapter_id: "chapter-2",
+      progress_percent: 100
+    });
+
+    const savedProgressResponse = await app.request("/api/books/book-1/progress", {}, env);
+    const savedProgressBody = (await savedProgressResponse.json()) as ApiResponse<ReadingProgress>;
+
+    expect(savedProgressResponse.status).toBe(200);
+    if (!savedProgressBody.ok) {
+      throw new Error(savedProgressBody.error.message);
+    }
+
+    expect(savedProgressBody.data).toMatchObject({
+      bookId: "book-1",
+      chapterId: "chapter-2",
+      progressPercent: 100
     });
   });
 
@@ -148,6 +170,7 @@ const rows: ChapterRow[] = [
 ];
 
 function createTestEnv(contentByKey = new Map(rows.map((row) => [row.object_key, `${row.title}正文`]))) {
+  const readingProgress: ReadingProgressRow[] = [];
   const bucketGet = vi.fn(async (key: string) => {
     const content = contentByKey.get(key);
 
@@ -161,7 +184,7 @@ function createTestEnv(contentByKey = new Map(rows.map((row) => [row.object_key,
   });
 
   const env: Bindings = {
-    DB: createD1Mock(rows),
+    DB: createD1Mock(rows, readingProgress),
     BOOK_BUCKET: {
       get: bucketGet
     } as unknown as R2Bucket,
@@ -169,20 +192,27 @@ function createTestEnv(contentByKey = new Map(rows.map((row) => [row.object_key,
     FRONTEND_ORIGIN: "http://localhost:5173"
   };
 
-  return { env, bucketGet };
+  return { env, bucketGet, readingProgress };
 }
 
-function createD1Mock(chapters: ChapterRow[]): D1Database {
+function createD1Mock(chapters: ChapterRow[], readingProgress: ReadingProgressRow[]): D1Database {
   return {
     prepare: (sql: string) => ({
       bind: (...bindings: unknown[]) => ({
+        run: async () => {
+          runStatement(sql, bindings, readingProgress);
+          return {
+            success: true,
+            meta: {}
+          };
+        },
         all: async <T>() => ({
-          results: queryChapters(sql, bindings, chapters) as T[],
+          results: queryStatement(sql, bindings, chapters, readingProgress) as T[],
           success: true,
           meta: {}
         }),
         first: async <T>() => {
-          const matches = queryChapters(sql, bindings, chapters);
+          const matches = queryStatement(sql, bindings, chapters, readingProgress);
           return (matches[0] ?? null) as T | null;
         }
       })
@@ -190,16 +220,78 @@ function createD1Mock(chapters: ChapterRow[]): D1Database {
   } as unknown as D1Database;
 }
 
-function queryChapters(sql: string, bindings: unknown[], chapters: ChapterRow[]): ChapterRow[] {
+function runStatement(sql: string, bindings: unknown[], readingProgress: ReadingProgressRow[]): void {
+  const normalizedSql = normalizeSql(sql);
+
+  if (normalizedSql.startsWith("insert into reading_progress")) {
+    const [id, userId, bookId, chapterId, scrollPosition, progressPercent, updatedAt] = bindings as [
+      string,
+      string,
+      string,
+      string | null,
+      number,
+      number,
+      string
+    ];
+    const existing = readingProgress.find((row) => row.user_id === userId && row.book_id === bookId);
+
+    if (existing) {
+      existing.chapter_id = chapterId;
+      existing.scroll_position = scrollPosition;
+      existing.progress_percent = progressPercent;
+      existing.updated_at = updatedAt;
+      return;
+    }
+
+    readingProgress.push({
+      id,
+      user_id: userId,
+      book_id: bookId,
+      chapter_id: chapterId,
+      scroll_position: scrollPosition,
+      progress_percent: progressPercent,
+      updated_at: updatedAt
+    });
+    return;
+  }
+
+  throw new Error(`Unhandled SQL: ${normalizedSql}`);
+}
+
+function queryStatement(
+  sql: string,
+  bindings: unknown[],
+  chapters: ChapterRow[],
+  readingProgress: ReadingProgressRow[]
+): unknown[] {
+  const normalizedSql = normalizeSql(sql);
+
+  if (normalizedSql.includes("from reading_progress")) {
+    const [userId, bookId] = bindings as [string, string];
+    return readingProgress.filter((row) => row.user_id === userId && row.book_id === bookId);
+  }
+
+  if (normalizedSql.includes("from chapters")) {
+    return queryChapters(normalizedSql, bindings, chapters);
+  }
+
+  throw new Error(`Unhandled SQL: ${normalizedSql}`);
+}
+
+function queryChapters(normalizedSql: string, bindings: unknown[], chapters: ChapterRow[]): ChapterRow[] {
   const bookId = bindings[0];
   const chapterId = bindings[1];
   const matchingBookChapters = chapters
     .filter((chapter) => chapter.book_id === bookId)
     .sort((left, right) => left.chapter_index - right.chapter_index);
 
-  if (sql.includes("AND id = ?")) {
+  if (normalizedSql.includes("and id = ?")) {
     return matchingBookChapters.filter((chapter) => chapter.id === chapterId);
   }
 
   return matchingBookChapters;
+}
+
+function normalizeSql(sql: string): string {
+  return sql.replace(/\s+/g, " ").trim().toLowerCase();
 }

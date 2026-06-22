@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 import type { Chapter, ChapterContent, ReadingProgress } from "shared";
 import { findChapterRow, findFirstChapterRow, listChapterRows, type ChapterRow } from "../db/repositories/chapter.repo";
+import {
+  findReadingProgressRow,
+  upsertReadingProgressRow,
+  type ReadingProgressRow
+} from "../db/repositories/reading-progress.repo";
 import type { AppEnv } from "../env";
 import { clampProgressPercent } from "../services/books/progress.service";
 import { getTextObject } from "../services/storage/r2.service";
@@ -9,7 +14,7 @@ import { ok } from "../utils/response";
 
 export const readerRoutes = new Hono<AppEnv>();
 
-const progressByBook = new Map<string, ReadingProgress>();
+const LOCAL_USER_ID = "local-user";
 
 readerRoutes.get("/:bookId/chapters", async (c) => {
   const chapters = await listChapterRows(c.env.DB, c.req.param("bookId"));
@@ -43,17 +48,26 @@ readerRoutes.get("/:bookId/progress", async (c) => c.json(ok(await getProgress(c
 readerRoutes.post("/:bookId/progress", async (c) => {
   const bookId = c.req.param("bookId");
   const body = (await c.req.json().catch(() => ({}))) as Partial<ReadingProgress>;
+  const updatedAt = new Date().toISOString();
   const progress: ReadingProgress = {
-    id: `progress-${bookId}`,
-    userId: "local-user",
+    id: progressId(LOCAL_USER_ID, bookId),
+    userId: LOCAL_USER_ID,
     bookId,
     chapterId: body.chapterId,
     scrollPosition: Number.isFinite(body.scrollPosition) ? Number(body.scrollPosition) : 0,
     progressPercent: clampProgressPercent(Number(body.progressPercent ?? 0)),
-    updatedAt: new Date().toISOString()
+    updatedAt
   };
 
-  progressByBook.set(bookId, progress);
+  await upsertReadingProgressRow(c.env.DB, {
+    id: progress.id,
+    userId: progress.userId,
+    bookId: progress.bookId,
+    chapterId: progress.chapterId,
+    scrollPosition: progress.scrollPosition,
+    progressPercent: progress.progressPercent,
+    updatedAt: progress.updatedAt
+  });
 
   return c.json(ok({ saved: true, progress }));
 });
@@ -79,21 +93,37 @@ function toChapterContent(chapter: ChapterRow, content: string): ChapterContent 
 }
 
 async function getProgress(db: D1Database, bookId: string): Promise<ReadingProgress> {
-  const savedProgress = progressByBook.get(bookId);
+  const savedProgress = await findReadingProgressRow(db, LOCAL_USER_ID, bookId);
 
   if (savedProgress) {
-    return savedProgress;
+    return toReadingProgress(savedProgress);
   }
 
   const firstChapter = await findFirstChapterRow(db, bookId);
 
   return {
-    id: `progress-${bookId}`,
-    userId: "local-user",
+    id: progressId(LOCAL_USER_ID, bookId),
+    userId: LOCAL_USER_ID,
     bookId,
     chapterId: firstChapter?.id,
     scrollPosition: 0,
     progressPercent: 0,
     updatedAt: new Date(0).toISOString()
   };
+}
+
+function toReadingProgress(row: ReadingProgressRow): ReadingProgress {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    bookId: row.book_id,
+    chapterId: row.chapter_id ?? undefined,
+    scrollPosition: row.scroll_position,
+    progressPercent: row.progress_percent,
+    updatedAt: row.updated_at
+  };
+}
+
+function progressId(userId: string, bookId: string): string {
+  return `progress-${userId}-${bookId}`;
 }

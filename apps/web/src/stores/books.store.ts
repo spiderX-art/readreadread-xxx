@@ -1,29 +1,52 @@
 import { defineStore } from "pinia";
-import type { Book, BookStatus } from "shared";
-
-const now = new Date().toISOString();
+import type { Book, BookSearchQuery, BookStatus } from "shared";
+import { getBook, listBooks, searchBooks } from "../services/books.api";
 
 export const useBooksStore = defineStore("books", {
   state: () => ({
-    books: [
-      {
-        id: "local-demo",
-        userId: "local-user",
-        title: "示例小说",
-        author: "本地作者",
-        fileName: "示例小说 - 本地作者.txt",
-        fileSize: 0,
-        wordCount: 120000,
-        chapterCount: 36,
-        status: "reading",
-        rating: 8.5,
-        createdAt: now,
-        updatedAt: now,
-        lastReadAt: now
-      }
-    ] satisfies Book[]
+    books: [] as Book[],
+    loading: false,
+    error: undefined as string | undefined
   }),
   actions: {
+    async fetchBooks(query: BookSearchQuery = {}) {
+      this.loading = true;
+      this.error = undefined;
+
+      try {
+        const result = query.q || query.status || query.tag || query.minRating !== undefined || query.maxRating !== undefined
+          ? await searchBooks(query)
+          : await listBooks(query);
+        this.books = result.items;
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : "书架加载失败";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async fetchBook(bookId: string): Promise<Book> {
+      this.loading = true;
+      this.error = undefined;
+
+      try {
+        const book = await getBook(bookId);
+        const index = this.books.findIndex((item) => item.id === book.id);
+
+        if (index >= 0) {
+          this.books[index] = book;
+        } else {
+          this.books.push(book);
+        }
+
+        return book;
+      } catch (error) {
+        this.error = error instanceof Error ? error.message : "书籍详情加载失败";
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
     byId(bookId: string): Book | undefined {
       return this.books.find((book) => book.id === bookId);
     },
