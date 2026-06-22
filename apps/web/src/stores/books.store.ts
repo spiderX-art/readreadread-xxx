@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import type { Book, BookSearchQuery, BookStatus } from "shared";
-import { getBook, listBooks, searchBooks } from "../services/books.api";
+import { deleteBook as deleteBookRequest, getBook, listBooks, searchBooks } from "../services/books.api";
 
 export const useBooksStore = defineStore("books", {
   state: () => ({
@@ -49,6 +49,10 @@ export const useBooksStore = defineStore("books", {
     },
     byId(bookId: string): Book | undefined {
       return this.books.find((book) => book.id === bookId);
+    },
+    async deleteBook(bookId: string): Promise<void> {
+      await deleteBookRequest(bookId);
+      this.books = this.books.filter((book) => book.id !== bookId);
     },
     search(keyword: string, status: string): Book[] {
       const q = keyword.trim().toLowerCase();

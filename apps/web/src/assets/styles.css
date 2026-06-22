@@ -149,6 +149,20 @@ a {
   font-weight: 700;
 }
 
+.success-text {
+  color: var(--color-green);
+  font-weight: 700;
+}
+
+.notice {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.state-panel {
+  max-width: 680px;
+}
+
 .toolbar,
 .panel,
 .book-card,
@@ -209,6 +223,10 @@ a {
 
 .button.warning {
   background: var(--color-coral);
+}
+
+.danger-zone {
+  border-color: rgb(187 77 62 / 42%);
 }
 
 .icon-button {

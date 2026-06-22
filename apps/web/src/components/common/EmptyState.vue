@@ -3,6 +3,7 @@
     <h2>{{ title }}</h2>
     <p>{{ description }}</p>
     <RouterLink v-if="to" class="button" :to="to">{{ action }}</RouterLink>
+    <button v-else-if="action" class="button" type="button" @click="$emit('action')">{{ action }}</button>
   </section>
 </template>
 
@@ -12,5 +13,9 @@ defineProps<{
   description: string;
   action?: string;
   to?: string;
+}>();
+
+defineEmits<{
+  action: [];
 }>();
 </script>

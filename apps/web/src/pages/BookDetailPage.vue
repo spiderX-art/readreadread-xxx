@@ -12,9 +12,16 @@
     </header>
 
     <p v-if="loading" class="muted">正在加载书籍详情...</p>
-    <p v-else-if="error" class="error-text">{{ error }}</p>
+    <section v-else-if="error" class="panel state-panel">
+      <h2>详情加载失败</h2>
+      <p class="error-text">{{ error }}</p>
+      <button class="button secondary" type="button" @click="loadDetail">重试</button>
+    </section>
 
     <div v-else-if="book" class="grid">
+      <p v-if="actionMessage" class="notice success-text">{{ actionMessage }}</p>
+      <p v-if="actionError" class="notice error-text">{{ actionError }}</p>
+
       <section class="panel">
         <h2>阅读状态</h2>
         <p>{{ bookStatusLabels[book.status] }}</p>
@@ -37,7 +44,7 @@
 
       <section class="panel">
         <h2>评分</h2>
-        <RatingGrid :book-id="bookId" @saved="refreshBook" />
+        <RatingGrid :book-id="bookId" @saved="handleRatingSaved" />
       </section>
 
       <section class="panel">
@@ -78,13 +85,25 @@
           </button>
         </div>
       </section>
+
+      <section class="panel danger-zone">
+        <h2>删除书籍</h2>
+        <p class="book-meta">删除后会移除书籍、阅读进度、评分和书评记录。</p>
+        <div v-if="confirmingDelete" class="form-row">
+          <button class="button warning" type="button" :disabled="deleting" @click="confirmDelete">
+            {{ deleting ? "删除中" : "确认删除" }}
+          </button>
+          <button class="button secondary" type="button" :disabled="deleting" @click="confirmingDelete = false">取消</button>
+        </div>
+        <button v-else class="button warning" type="button" @click="confirmingDelete = true">删除书籍</button>
+      </section>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import type { BookStatus } from "shared";
 import RatingGrid from "../components/rating/RatingGrid.vue";
 import { getBookReview, getDropReason, saveBookReview, saveDropReason, updateBookStatus } from "../services/books.api";
@@ -92,6 +111,7 @@ import { useBooksStore } from "../stores/books.store";
 import { bookStatusLabels } from "../utils/format";
 
 const route = useRoute();
+const router = useRouter();
 const booksStore = useBooksStore();
 const bookId = computed(() => String(route.params.bookId));
 const book = computed(() => booksStore.byId(bookId.value));
@@ -100,6 +120,10 @@ const error = ref<string>();
 const savingStatus = ref(false);
 const savingReview = ref(false);
 const savingDropReason = ref(false);
+const deleting = ref(false);
+const confirmingDelete = ref(false);
+const actionMessage = ref<string>();
+const actionError = ref<string>();
 const statusDraft = ref<BookStatus>("not_started");
 const reviewForm = reactive({
   shortComment: "",
@@ -136,6 +160,8 @@ watch(
 async function loadDetail() {
   loading.value = true;
   error.value = undefined;
+  clearActionFeedback();
+  confirmingDelete.value = false;
 
   try {
     await booksStore.fetchBook(bookId.value);
@@ -160,12 +186,27 @@ async function refreshBook() {
   await booksStore.fetchBook(bookId.value);
 }
 
+async function handleRatingSaved() {
+  clearActionFeedback();
+
+  try {
+    await refreshBook();
+    showSuccess("评分已保存");
+  } catch (saveError) {
+    showError(saveError, "评分已保存，但书籍摘要刷新失败");
+  }
+}
+
 async function saveStatus() {
   savingStatus.value = true;
+  clearActionFeedback();
 
   try {
     await updateBookStatus(bookId.value, statusDraft.value);
     await refreshBook();
+    showSuccess("阅读状态已保存");
+  } catch (saveError) {
+    showError(saveError, "阅读状态保存失败");
   } finally {
     savingStatus.value = false;
   }
@@ -173,6 +214,7 @@ async function saveStatus() {
 
 async function saveReview() {
   savingReview.value = true;
+  clearActionFeedback();
 
   try {
     await saveBookReview(bookId.value, {
@@ -183,6 +225,9 @@ async function saveReview() {
       recommended: reviewForm.recommended === "" ? undefined : reviewForm.recommended === "true",
       targetReaders: reviewForm.targetReaders
     });
+    showSuccess("书评已保存");
+  } catch (saveError) {
+    showError(saveError, "书评保存失败");
   } finally {
     savingReview.value = false;
   }
@@ -190,6 +235,7 @@ async function saveReview() {
 
 async function saveDropReasonForm() {
   savingDropReason.value = true;
+  clearActionFeedback();
 
   try {
     await saveDropReason(bookId.value, {
@@ -197,8 +243,40 @@ async function saveDropReasonForm() {
       note: dropReasonForm.note,
       mayReadLater: dropReasonForm.mayReadLater
     });
+    showSuccess("弃读原因已保存");
+  } catch (saveError) {
+    showError(saveError, "弃读原因保存失败");
   } finally {
     savingDropReason.value = false;
   }
+}
+
+async function confirmDelete() {
+  deleting.value = true;
+  clearActionFeedback();
+
+  try {
+    await booksStore.deleteBook(bookId.value);
+    await router.push({ name: "bookshelf" });
+  } catch (deleteError) {
+    showError(deleteError, "删除书籍失败");
+  } finally {
+    deleting.value = false;
+  }
+}
+
+function clearActionFeedback(): void {
+  actionMessage.value = undefined;
+  actionError.value = undefined;
+}
+
+function showSuccess(message: string): void {
+  actionMessage.value = message;
+  actionError.value = undefined;
+}
+
+function showError(error: unknown, fallback: string): void {
+  actionMessage.value = undefined;
+  actionError.value = error instanceof Error ? error.message : fallback;
 }
 </script>
