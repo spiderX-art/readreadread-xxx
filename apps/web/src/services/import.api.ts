@@ -1,5 +1,5 @@
-import type { Book, ImportPreview, SyncImportResult } from "shared";
-import { apiPost } from "./api";
+import type { Book, CreateSyncJobResult, ImportPreview, SyncImportResult, SyncJob } from "shared";
+import { apiGet, apiPost } from "./api";
 
 export interface ImportTxtRequest {
   sourceFileId: string;
@@ -29,4 +29,16 @@ export function importTxtFromNetdisk(body: ImportTxtRequest): Promise<ImportTxtR
 
 export function syncPreviewImports(path = "/小说"): Promise<SyncImportResult> {
   return apiPost<SyncImportResult>("/api/import/sync-preview", { path });
+}
+
+export function createSyncImportJob(path = "/小说"): Promise<CreateSyncJobResult> {
+  return apiPost<CreateSyncJobResult>("/api/import/sync-jobs", { path });
+}
+
+export function getSyncImportJob(jobId: string): Promise<SyncJob> {
+  return apiGet<SyncJob>(`/api/import/sync-jobs/${jobId}`);
+}
+
+export function retrySyncImportJobItem(jobId: string, itemId: string): Promise<CreateSyncJobResult> {
+  return apiPost<CreateSyncJobResult>(`/api/import/sync-jobs/${jobId}/items/${itemId}/retry`);
 }

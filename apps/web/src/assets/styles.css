@@ -212,8 +212,7 @@ a {
 }
 
 .sync-notice-active .sync-progress span {
-  width: 42%;
-  animation: sync-progress-slide 1.2s ease-in-out infinite;
+  animation: none;
 }
 
 .sync-notice-error {
@@ -456,14 +455,94 @@ a {
 .inline-sync-progress i {
   position: absolute;
   inset: 0;
-  width: 42%;
   border-radius: inherit;
   background: var(--color-green);
-  animation: sync-progress-slide 1.2s ease-in-out infinite;
+  transition: width 180ms ease;
 }
 
 .sync-strip-error {
   border-color: rgb(169 80 66 / 35%);
+}
+
+.sync-details {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fff;
+}
+
+.sync-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sync-stats span {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--color-muted);
+  font-size: 0.92rem;
+}
+
+.sync-stats strong {
+  color: var(--color-ink);
+}
+
+.sync-current {
+  margin: 0;
+  color: var(--color-green);
+  font-weight: 800;
+}
+
+.sync-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sync-result-list {
+  min-width: 0;
+}
+
+.sync-result-list strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.sync-result-list ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sync-result-list li {
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.sync-result-failed li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sync-retry-button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
 }
 
 .bookshelf-controls {
@@ -891,6 +970,14 @@ a {
 
   .sync-strip {
     display: grid;
+  }
+
+  .sync-result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sync-result-failed li {
+    align-items: flex-start;
   }
 
   .book-search {

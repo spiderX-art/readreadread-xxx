@@ -12,13 +12,62 @@
       <div>
         <strong>{{ syncTitle }}</strong>
         <span>{{ syncDescription }}</span>
-        <div v-if="importSyncStore.loading" class="inline-sync-progress" aria-hidden="true">
-          <i />
+        <div
+          v-if="importSyncStore.job"
+          class="inline-sync-progress"
+          role="progressbar"
+          :aria-valuenow="syncProgressPercent"
+        >
+          <i :style="{ width: `${syncProgressPercent}%` }" />
         </div>
       </div>
       <button class="button secondary" type="button" :disabled="importSyncStore.loading" @click="manualSync">
         {{ importSyncStore.loading ? "同步中" : "立即同步" }}
       </button>
+    </section>
+
+    <section v-if="importSyncStore.job" class="sync-details" aria-live="polite">
+      <div class="sync-stats">
+        <span>阶段 <strong>{{ syncStageLabel }}</strong></span>
+        <span>进度 <strong>{{ importSyncStore.job.processedCount }}/{{ importSyncStore.job.candidateCount }}</strong></span>
+        <span>成功 <strong>{{ importSyncStore.job.importedCount }}</strong></span>
+        <span>跳过 <strong>{{ importSyncStore.job.skippedCount }}</strong></span>
+        <span>失败 <strong>{{ importSyncStore.job.failedCount }}</strong></span>
+      </div>
+
+      <p v-if="currentSyncItem" class="sync-current">正在导入：{{ currentSyncItem.fileName }}</p>
+
+      <div v-if="syncHasItems" class="sync-result-grid">
+        <div v-if="importSyncStore.job.imported.length" class="sync-result-list">
+          <strong>成功</strong>
+          <ul>
+            <li v-for="item in importSyncStore.job.imported.slice(0, 5)" :key="item.id">
+              {{ item.title || item.fileName }}
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="importSyncStore.job.skipped.length" class="sync-result-list">
+          <strong>跳过</strong>
+          <ul>
+            <li v-for="item in importSyncStore.job.skipped.slice(0, 5)" :key="item.id">
+              {{ item.fileName }}
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="importSyncStore.job.failed.length" class="sync-result-list sync-result-failed">
+          <strong>失败</strong>
+          <ul>
+            <li v-for="item in importSyncStore.job.failed" :key="item.id">
+              <span>{{ item.fileName }}：{{ item.message || "导入失败" }}</span>
+              <button class="button secondary sync-retry-button" type="button" :disabled="importSyncStore.loading" @click="retryFailedItem(item.id)">
+                重试
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <div class="bookshelf-controls">
@@ -91,7 +140,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import type { Book, BookSearchQuery, BookStatus, Tag } from "shared";
+import type { Book, BookSearchQuery, BookStatus, SyncJobItem, Tag } from "shared";
 import BookCard from "../components/book/BookCard.vue";
 import EmptyState from "../components/common/EmptyState.vue";
 import { listBooks } from "../services/books.api";
@@ -125,9 +174,60 @@ const statusOptions = computed(() => [
   { value: "not_started", label: "想读", count: countStatus("not_started") }
 ]);
 const ratingLabel = computed(() => (ratingMinimum.value > 0 ? `${ratingMinimum.value.toFixed(1)} 分+` : "全部"));
+const syncProgressPercent = computed(() => {
+  const job = importSyncStore.job;
+
+  if (!job) {
+    return 0;
+  }
+
+  if (job.status === "completed") {
+    return 100;
+  }
+
+  if (job.status === "scanning" || job.candidateCount === 0) {
+    return job.status === "failed" ? 100 : 8;
+  }
+
+  return Math.max(8, Math.round((job.processedCount / job.candidateCount) * 100));
+});
+const syncStageLabel = computed(() => {
+  const status = importSyncStore.job?.status;
+
+  if (status === "scanning") {
+    return "扫描中";
+  }
+
+  if (status === "importing") {
+    return "导入中";
+  }
+
+  if (status === "completed") {
+    return "已完成";
+  }
+
+  if (status === "failed") {
+    return "失败";
+  }
+
+  return "排队中";
+});
+const currentSyncItem = computed<SyncJobItem | undefined>(() => {
+  const job = importSyncStore.job;
+
+  if (!job?.currentSourceFileId) {
+    return undefined;
+  }
+
+  return job.items.find((item) => item.sourceFileId === job.currentSourceFileId);
+});
+const syncHasItems = computed(() => {
+  const job = importSyncStore.job;
+  return Boolean(job && (job.imported.length || job.skipped.length || job.failed.length));
+});
 const syncTitle = computed(() => {
   if (importSyncStore.loading) {
-    return "正在扫描 /小说";
+    return `自动同步${syncStageLabel.value}`;
   }
 
   if (importSyncStore.error) {
@@ -145,6 +245,11 @@ const syncTitle = computed(() => {
 const syncDescription = computed(() => {
   if (importSyncStore.error) {
     return importSyncStore.error;
+  }
+
+  if (importSyncStore.job) {
+    const job = importSyncStore.job;
+    return `处理 ${job.processedCount}/${job.candidateCount} 个 TXT，成功 ${job.importedCount} 本，跳过 ${job.skippedCount} 本${job.failedCount ? `，失败 ${job.failedCount} 本` : ""}`;
   }
 
   if (importSyncStore.result) {
@@ -223,6 +328,14 @@ function resetFilters(): void {
 async function manualSync(): Promise<void> {
   try {
     await importSyncStore.sync({ force: true });
+  } catch {
+    // The sync strip owns the visible error state.
+  }
+}
+
+async function retryFailedItem(itemId: string): Promise<void> {
+  try {
+    await importSyncStore.retryFailedItem(itemId);
   } catch {
     // The sync strip owns the visible error state.
   }

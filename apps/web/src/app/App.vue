@@ -39,8 +39,8 @@
           </div>
           <button class="sync-notice-close" type="button" aria-label="关闭同步提示" @click="dismissSyncNotice">×</button>
         </div>
-        <div class="sync-progress" role="progressbar" :aria-valuenow="importSyncStore.loading ? undefined : 100">
-          <span />
+        <div class="sync-progress" role="progressbar" :aria-valuenow="syncProgressPercent">
+          <span :style="{ width: `${syncProgressPercent}%` }" />
         </div>
       </section>
       <RouterView />
@@ -56,11 +56,11 @@ const importSyncStore = useImportSyncStore();
 const syncNoticeDismissedAt = ref(0);
 const syncLabel = computed(() => {
   if (importSyncStore.loading) {
-    return "扫描中";
+    return importSyncStore.job?.status === "importing" ? "导入中" : "扫描中";
   }
 
-  if (importSyncStore.result) {
-    return `新增 ${importSyncStore.result.imported.length}`;
+  if (importSyncStore.job) {
+    return `新增 ${importSyncStore.job.importedCount}`;
   }
 
   if (importSyncStore.error) {
@@ -68,6 +68,23 @@ const syncLabel = computed(() => {
   }
 
   return "待扫描";
+});
+const syncProgressPercent = computed(() => {
+  const job = importSyncStore.job;
+
+  if (!job) {
+    return importSyncStore.loading ? 8 : 100;
+  }
+
+  if (job.status === "completed" || job.status === "failed") {
+    return 100;
+  }
+
+  if (job.status === "scanning" || job.candidateCount === 0) {
+    return 8;
+  }
+
+  return Math.max(8, Math.round((job.processedCount / job.candidateCount) * 100));
 });
 const showSyncNotice = computed(() => {
   if (!importSyncStore.lastStartedAt) {
@@ -78,7 +95,7 @@ const showSyncNotice = computed(() => {
 });
 const syncNoticeTitle = computed(() => {
   if (importSyncStore.loading) {
-    return "正在自动同步 /小说";
+    return importSyncStore.job?.status === "importing" ? "正在导入 /小说" : "正在扫描 /小说";
   }
 
   if (importSyncStore.error) {
@@ -93,16 +110,22 @@ const syncNoticeTitle = computed(() => {
 });
 const syncNoticeDescription = computed(() => {
   if (importSyncStore.loading) {
-    return "正在扫描百度网盘 /小说，并导入未入库的 TXT 文件。";
+    const job = importSyncStore.job;
+
+    if (!job || job.status === "scanning") {
+      return "正在扫描百度网盘 /小说 下的 TXT 文件。";
+    }
+
+    return `正在导入第 ${job.processedCount + 1} / ${job.candidateCount} 本，已成功 ${job.importedCount} 本，跳过 ${job.skippedCount} 本。`;
   }
 
   if (importSyncStore.error) {
     return importSyncStore.error;
   }
 
-  if (importSyncStore.result) {
-    const { candidateCount, imported, skipped, failed } = importSyncStore.result;
-    return `扫描 ${candidateCount} 个 TXT，新增 ${imported.length} 本，已存在 ${skipped.length} 本${failed.length ? `，失败 ${failed.length} 本` : ""}。`;
+  if (importSyncStore.job) {
+    const job = importSyncStore.job;
+    return `扫描 ${job.candidateCount} 个 TXT，新增 ${job.importedCount} 本，已存在 ${job.skippedCount} 本${job.failedCount ? `，失败 ${job.failedCount} 本` : ""}。`;
   }
 
   return "等待下一次自动同步。";

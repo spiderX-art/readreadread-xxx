@@ -6,7 +6,13 @@ import type { AppEnv } from "../env";
 import { downloadBaiduTxtFile } from "../services/baidu/baidu-file.service";
 import { getValidBaiduAccessToken } from "../services/baidu/baidu-token.service";
 import { parseTxtChapters } from "../services/import/chapter-parser.service";
-import { syncPreviewImports } from "../services/import/sync-import.service";
+import {
+  createRetrySyncImportJob,
+  createSyncImportJob,
+  getSyncImportJob,
+  runSyncImportJob,
+  syncPreviewImports
+} from "../services/import/sync-import.service";
 import { importTxtBook, previewTxtImport } from "../services/import/txt-import.service";
 import { AppError } from "../utils/errors";
 import { fail, ok } from "../utils/response";
@@ -37,6 +43,52 @@ importRoutes.post("/sync-preview", async (c) => {
   });
 
   return c.json(ok(result));
+});
+
+importRoutes.post("/sync-jobs", async (c) => {
+  const body = (await c.req.json<SyncPreviewRequest>().catch(() => ({}))) as SyncPreviewRequest;
+  const job = await createSyncImportJob(c.env.DB, {
+    userId: c.get("userId"),
+    path: body.path
+  });
+  const runPromise = runSyncImportJob(c.env.DB, c.env.BOOK_BUCKET, c.env, {
+    userId: c.get("userId"),
+    jobId: job.id,
+    path: job.path
+  });
+
+  c.executionCtx.waitUntil(runPromise);
+
+  return c.json(ok({ jobId: job.id, job }), 202);
+});
+
+importRoutes.get("/sync-jobs/:jobId", async (c) => {
+  const job = await getSyncImportJob(c.env.DB, c.req.param("jobId"), c.get("userId"));
+
+  if (!job) {
+    throw new AppError(404, "SYNC_JOB_NOT_FOUND", "同步任务不存在");
+  }
+
+  return c.json(ok(job));
+});
+
+importRoutes.post("/sync-jobs/:jobId/items/:itemId/retry", async (c) => {
+  const { job, file } = await createRetrySyncImportJob(
+    c.env.DB,
+    c.req.param("jobId"),
+    c.req.param("itemId"),
+    c.get("userId")
+  );
+  const runPromise = runSyncImportJob(c.env.DB, c.env.BOOK_BUCKET, c.env, {
+    userId: c.get("userId"),
+    jobId: job.id,
+    path: job.path,
+    files: [file]
+  });
+
+  c.executionCtx.waitUntil(runPromise);
+
+  return c.json(ok({ jobId: job.id, job }), 202);
 });
 
 importRoutes.post("/preview", async (c) => {

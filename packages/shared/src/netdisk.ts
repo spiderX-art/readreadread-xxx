@@ -44,3 +44,42 @@ export interface SyncImportResult {
   skipped: SyncImportItem[];
   failed: SyncImportFailure[];
 }
+
+export type SyncJobStatus = "pending" | "scanning" | "importing" | "completed" | "failed";
+export type SyncJobItemStatus = "pending" | "importing" | "imported" | "skipped" | "failed";
+
+export interface SyncJobItem extends SyncImportItem {
+  id: string;
+  status: SyncJobItemStatus;
+  message?: string;
+  code?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SyncJob {
+  id: string;
+  userId: string;
+  path: string;
+  status: SyncJobStatus;
+  message?: string;
+  scannedCount: number;
+  candidateCount: number;
+  processedCount: number;
+  importedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  currentSourceFileId?: string;
+  items: SyncJobItem[];
+  imported: SyncJobItem[];
+  skipped: SyncJobItem[];
+  failed: SyncJobItem[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+}
+
+export interface CreateSyncJobResult {
+  jobId: string;
+  job: SyncJob;
+}
