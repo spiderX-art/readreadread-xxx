@@ -12,6 +12,9 @@
       <div>
         <strong>{{ syncTitle }}</strong>
         <span>{{ syncDescription }}</span>
+        <div v-if="importSyncStore.loading" class="inline-sync-progress" aria-hidden="true">
+          <i />
+        </div>
       </div>
       <button class="button secondary" type="button" :disabled="importSyncStore.loading" @click="manualSync">
         {{ importSyncStore.loading ? "同步中" : "立即同步" }}

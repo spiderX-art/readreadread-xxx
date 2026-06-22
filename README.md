@@ -23,6 +23,10 @@ pnpm dev:web
 pnpm exec wrangler d1 migrations apply novel-cloud-reader --local --config apps/worker/wrangler.toml
 ```
 
+## 项目索引
+
+- [功能索引表](docs/feature-index.md)：按功能映射前端入口、API、后端路由、核心业务文件和数据表，方便后续快速定位代码。
+
 ## 百度网盘导入配置
 
 在百度开放平台创建应用，并把回调地址配置为：
