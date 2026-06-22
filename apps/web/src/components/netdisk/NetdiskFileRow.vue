@@ -1,6 +1,7 @@
 <template>
   <li class="panel netdisk-file-row">
-    <div>
+    <span class="file-type-icon" aria-hidden="true">{{ file.isDir ? "DIR" : "TXT" }}</span>
+    <div class="netdisk-file-main">
       <div class="file-title-row">
         <strong>{{ file.name }}</strong>
         <span v-if="file.imported" class="tag">已导入</span>

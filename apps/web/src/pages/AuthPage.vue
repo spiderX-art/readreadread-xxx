@@ -7,20 +7,45 @@
       </div>
     </header>
 
-    <div class="panel">
-      <div class="form-grid">
+    <section class="auth-hero panel">
+      <div class="auth-mark" :class="{ connected: authStore.userId }" aria-hidden="true">∞</div>
+      <div class="auth-copy">
+        <h2>{{ authStore.userId ? "百度网盘已授权" : "等待百度网盘授权" }}</h2>
         <p v-if="message" class="success-text">{{ message }}</p>
         <p v-if="error" class="error-text">{{ error }}</p>
-        <p v-if="authStore.userId" class="muted">当前百度账号：{{ authStore.displayName || authStore.userId }}</p>
-        <p v-else class="muted">当前未连接百度网盘，系统会打开百度授权页面获取账号权限。</p>
+        <span class="auth-status">{{ authStore.userId ? "授权状态：已授权" : "授权状态：未授权" }}</span>
+        <p class="muted">
+          {{ authStore.userId ? `当前百度账号：${authStore.displayName || authStore.userId}` : "连接后系统会读取你选择的 TXT 文件并导入私人书架。" }}
+        </p>
+      </div>
+      <div class="auth-actions">
         <div class="form-row">
           <button class="button" type="button" :disabled="autoStarting" @click="login">
             {{ connectButtonLabel }}
           </button>
           <button v-if="authStore.userId" class="button secondary" type="button" @click="logout">退出</button>
         </div>
+        <p class="muted">如果导入异常，可尝试重新授权。</p>
       </div>
-    </div>
+    </section>
+
+    <section class="panel auth-safety">
+      <h2>授权说明与安全保障</h2>
+      <div class="auth-safety-grid">
+        <article>
+          <strong>仅读取 TXT 文件</strong>
+          <p>应用只扫描授权目录下的 TXT 文本文件，不读取其他类型文件。</p>
+        </article>
+        <article>
+          <strong>隐私与数据安全</strong>
+          <p>百度账号和文件数据由授权接口保护，系统仅保存导入所需的访问令牌。</p>
+        </article>
+        <article>
+          <strong>可随时取消授权</strong>
+          <p>你可以退出当前授权，应用会立即停止使用本地会话访问网盘。</p>
+        </article>
+      </div>
+    </section>
   </section>
 </template>
 

@@ -22,6 +22,27 @@
       </section>
     </aside>
 
+    <header class="top-nav" aria-label="窄屏主导航">
+      <RouterLink class="brand" to="/books">
+        <span class="brand-mark">阅</span>
+        <span>
+          <strong>私人书架</strong>
+          <small>Cloud Reader</small>
+        </span>
+      </RouterLink>
+
+      <nav class="nav-links">
+        <RouterLink to="/books">书架</RouterLink>
+        <RouterLink to="/netdisk">导入</RouterLink>
+        <RouterLink to="/auth">授权</RouterLink>
+      </nav>
+
+      <div class="nav-account" aria-label="当前账号">
+        <span class="account-avatar">{{ accountInitial }}</span>
+        <span class="account-caret">⌄</span>
+      </div>
+    </header>
+
     <main class="app-main">
       <section
         v-if="showSyncNotice"
@@ -33,6 +54,7 @@
         aria-live="polite"
       >
         <div class="sync-notice-content">
+          <span class="sync-notice-icon" aria-hidden="true">⇩</span>
           <div>
             <p>{{ syncNoticeTitle }}</p>
             <span>{{ syncNoticeDescription }}</span>
@@ -60,6 +82,10 @@ const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const syncNoticeDismissedAt = ref(0);
+const accountInitial = computed(() => {
+  const label = authStore.displayName || authStore.userId || "R";
+  return label.trim().charAt(0).toUpperCase() || "R";
+});
 const syncLabel = computed(() => {
   if (importSyncStore.loading) {
     return importSyncStore.job?.status === "importing" ? "导入中" : "扫描中";

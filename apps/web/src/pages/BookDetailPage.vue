@@ -1,16 +1,5 @@
 <template>
   <section>
-    <header class="page-header">
-      <div>
-        <h1>{{ book?.title ?? "书籍详情" }}</h1>
-        <p>{{ book?.author ?? "作者待识别" }}</p>
-      </div>
-      <div v-if="book" class="header-actions">
-        <RouterLink class="button secondary" :to="`/books/${bookId}/search`">书内搜索</RouterLink>
-        <RouterLink class="button" :to="`/books/${bookId}/read`">继续阅读</RouterLink>
-      </div>
-    </header>
-
     <p v-if="loading" class="muted">正在加载书籍详情...</p>
     <section v-else-if="error" class="panel state-panel">
       <h2>详情加载失败</h2>
@@ -18,86 +7,143 @@
       <button class="button secondary" type="button" @click="loadDetail">重试</button>
     </section>
 
-    <div v-else-if="book" class="grid">
+    <div v-else-if="book" class="book-detail-page">
       <p v-if="actionMessage" class="notice success-text">{{ actionMessage }}</p>
       <p v-if="actionError" class="notice error-text">{{ actionError }}</p>
 
-      <section class="panel">
-        <h2>阅读状态</h2>
-        <p>{{ bookStatusLabels[book.status] }}</p>
-        <div class="form-row">
-          <select v-model="statusDraft" class="select-input">
-            <option v-for="(label, value) in bookStatusLabels" :key="value" :value="value">
-              {{ label }}
-            </option>
-          </select>
-          <button class="button secondary" type="button" :disabled="savingStatus" @click="saveStatus">
-            {{ savingStatus ? "保存中" : "保存状态" }}
-          </button>
+      <section class="book-hero panel">
+        <div class="book-cover" aria-hidden="true">
+          <strong>{{ book.title }}</strong>
+          <span>{{ book.author || "未知作者" }}</span>
+        </div>
+        <div class="book-hero-main">
+          <h1>{{ book.title }}</h1>
+          <p class="book-author-line">作者：{{ book.author || "未知作者" }}</p>
+          <dl class="book-hero-meta">
+            <div>
+              <dt>类型</dt>
+              <dd>小说</dd>
+            </div>
+            <div>
+              <dt>格式</dt>
+              <dd>TXT</dd>
+            </div>
+            <div>
+              <dt>字数</dt>
+              <dd>{{ book.wordCount.toLocaleString() }} 字</dd>
+            </div>
+            <div>
+              <dt>章节</dt>
+              <dd>{{ book.chapterCount }} 章</dd>
+            </div>
+            <div>
+              <dt>导入时间</dt>
+              <dd>{{ formatDateTime(book.createdAt) }}</dd>
+            </div>
+          </dl>
+        </div>
+        <div class="book-hero-actions">
+          <RouterLink class="button" :to="`/books/${bookId}/read`">继续阅读</RouterLink>
+          <RouterLink class="button secondary" :to="`/books/${bookId}/search`">书内搜索</RouterLink>
         </div>
       </section>
 
-      <section class="panel">
-        <h2>书籍信息</h2>
-        <p class="book-meta">{{ book.chapterCount }} 章 · {{ book.wordCount }} 字 · {{ book.fileName }}</p>
-      </section>
-
-      <section class="panel">
-        <h2>标签</h2>
-        <div v-if="book.tags?.length" class="tag-list editable-tag-list">
-          <button v-for="tag in book.tags" :key="tag.id" class="tag tag-button" type="button" @click="removeTag(tag.id)">
-            {{ tag.name }} ×
-          </button>
-        </div>
-        <p v-else class="book-meta">还没有标签。</p>
-        <div class="form-grid tag-editor">
+      <div class="detail-card-grid">
+        <section class="panel detail-card reading-card">
+          <h2>阅读状态</h2>
+          <p class="detail-card-value">{{ bookStatusLabels[book.status] }}</p>
+          <p class="muted">开始你的阅读之旅吧</p>
           <div class="form-row">
-            <select v-model="selectedTagId" class="select-input">
-              <option value="">选择已有标签</option>
-              <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
+            <select v-model="statusDraft" class="select-input">
+              <option v-for="(label, value) in bookStatusLabels" :key="value" :value="value">
+                {{ label }}
+              </option>
             </select>
-            <button class="button secondary" type="button" :disabled="savingTag || !selectedTagId" @click="addSelectedTag">
-              {{ savingTag ? "保存中" : "添加标签" }}
+            <button class="button secondary" type="button" :disabled="savingStatus" @click="saveStatus">
+              {{ savingStatus ? "保存中" : "保存状态" }}
             </button>
           </div>
-          <div class="form-row">
-            <input v-model="newTagName" class="text-input" maxlength="24" placeholder="新标签名称" />
-            <select v-model="newTagType" class="select-input">
-              <option v-for="type in TAG_TYPES" :key="type" :value="type">{{ tagTypeLabels[type] }}</option>
-            </select>
-            <button class="button secondary" type="button" :disabled="savingTag || !newTagName.trim()" @click="createAndAttachTag">
-              新建并添加
+        </section>
+
+        <section class="panel detail-card">
+          <h2>书籍信息</h2>
+          <dl class="info-list">
+            <div>
+              <dt>文件名</dt>
+              <dd>{{ book.fileName }}</dd>
+            </div>
+            <div>
+              <dt>文件大小</dt>
+              <dd>{{ formatFileSize(book.fileSize) }}</dd>
+            </div>
+            <div>
+              <dt>文件路径</dt>
+              <dd>{{ book.sourcePath || "本地导入" }}</dd>
+            </div>
+            <div>
+              <dt>导入时间</dt>
+              <dd>{{ formatDateTime(book.createdAt) }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="panel detail-card">
+          <h2>标签</h2>
+          <div v-if="book.tags?.length" class="tag-list editable-tag-list">
+            <button v-for="tag in book.tags" :key="tag.id" class="tag tag-button" type="button" @click="removeTag(tag.id)">
+              {{ tag.name }} ×
             </button>
           </div>
-        </div>
-      </section>
+          <p v-else class="book-meta">还没有标签</p>
+          <div class="form-grid tag-editor">
+            <div class="form-row">
+              <select v-model="selectedTagId" class="select-input">
+                <option value="">选择已有标签</option>
+                <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
+              </select>
+              <button class="button secondary" type="button" :disabled="savingTag || !selectedTagId" @click="addSelectedTag">
+                {{ savingTag ? "保存中" : "添加标签" }}
+              </button>
+            </div>
+            <div class="form-row">
+              <input v-model="newTagName" class="text-input" maxlength="24" placeholder="新标签名称" />
+              <select v-model="newTagType" class="select-input">
+                <option v-for="type in TAG_TYPES" :key="type" :value="type">{{ tagTypeLabels[type] }}</option>
+              </select>
+              <button class="button secondary" type="button" :disabled="savingTag || !newTagName.trim()" @click="createAndAttachTag">
+                新建并添加
+              </button>
+            </div>
+          </div>
+        </section>
 
-      <section class="panel">
-        <h2>评分</h2>
-        <RatingGrid :book-id="bookId" @saved="handleRatingSaved" />
-      </section>
+        <section class="panel detail-card">
+          <h2>评分</h2>
+          <RatingGrid :book-id="bookId" @saved="handleRatingSaved" />
+        </section>
 
-      <section class="panel">
-        <h2>书评</h2>
-        <div class="form-grid">
-          <input v-model="reviewForm.shortComment" class="text-input" placeholder="短评" />
-          <button class="button secondary" type="button" :disabled="savingReview" @click="saveReview">
-            {{ savingReview ? "保存中" : "保存书评" }}
-          </button>
-        </div>
-      </section>
+        <section class="panel detail-card">
+          <h2>书评</h2>
+          <div class="form-grid">
+            <textarea v-model="reviewForm.shortComment" class="text-input textarea-input" maxlength="500" placeholder="写下你的书评..." />
+            <button class="button secondary" type="button" :disabled="savingReview" @click="saveReview">
+              {{ savingReview ? "保存中" : "保存书评" }}
+            </button>
+          </div>
+        </section>
 
-      <section class="panel danger-zone">
-        <h2>删除书籍</h2>
-        <p class="book-meta">删除后会移除书籍、阅读进度、评分和书评记录。</p>
-        <div v-if="confirmingDelete" class="form-row">
-          <button class="button warning" type="button" :disabled="deleting" @click="confirmDelete">
-            {{ deleting ? "删除中" : "确认删除" }}
-          </button>
-          <button class="button secondary" type="button" :disabled="deleting" @click="confirmingDelete = false">取消</button>
-        </div>
-        <button v-else class="button warning" type="button" @click="confirmingDelete = true">删除书籍</button>
-      </section>
+        <section class="panel detail-card danger-zone">
+          <h2>删除书籍</h2>
+          <p class="book-meta">删除后将移除书籍、阅读进度、评分和书评记录，且无法恢复。</p>
+          <div v-if="confirmingDelete" class="form-row">
+            <button class="button warning" type="button" :disabled="deleting" @click="confirmDelete">
+              {{ deleting ? "删除中" : "确认删除" }}
+            </button>
+            <button class="button secondary" type="button" :disabled="deleting" @click="confirmingDelete = false">取消</button>
+          </div>
+          <button v-else class="button warning" type="button" @click="confirmingDelete = true">删除书籍</button>
+        </section>
+      </div>
     </div>
   </section>
 </template>
@@ -110,7 +156,7 @@ import RatingGrid from "../components/rating/RatingGrid.vue";
 import { getBookReview, saveBookReview, updateBookStatus } from "../services/books.api";
 import { attachTagToBook, createTag, detachTagFromBook, listTags } from "../services/tags.api";
 import { useBooksStore } from "../stores/books.store";
-import { bookStatusLabels } from "../utils/format";
+import { bookStatusLabels, formatDateTime, formatFileSize } from "../utils/format";
 
 const route = useRoute();
 const router = useRouter();

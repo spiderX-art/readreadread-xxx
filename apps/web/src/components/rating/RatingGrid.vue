@@ -1,6 +1,6 @@
 <template>
   <div class="form-grid">
-    <label v-for="field in RATING_FIELDS" :key="field" class="panel">
+    <label v-for="field in RATING_FIELDS" :key="field" class="rating-field">
       <span>{{ ratingFieldLabels[field] }}</span>
       <input v-model="values[field]" class="text-input" type="number" min="1" max="10" step="0.5" />
     </label>

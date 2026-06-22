@@ -1,10 +1,11 @@
 <template>
   <section>
-    <header class="page-header">
+    <header class="page-header netdisk-header">
       <div>
         <h1>网盘扫描</h1>
         <p>浏览网盘目录，筛选 TXT 文件，选择后进入导入确认。</p>
       </div>
+      <button class="button secondary" type="button">导入说明</button>
     </header>
 
     <div class="toolbar">
@@ -12,8 +13,19 @@
       <button class="button" type="button" :disabled="loading" @click="scanDirectory">
         {{ loading ? "扫描中" : "扫描目录" }}
       </button>
+      <select class="select-input" aria-label="文件类型">
+        <option>TXT 文件</option>
+      </select>
       <input v-model="keyword" class="search-input" placeholder="搜索 TXT 文件" />
       <button class="button secondary" type="button" :disabled="loading || !keyword.trim()" @click="searchFiles">搜索</button>
+    </div>
+
+    <div class="netdisk-subbar">
+      <span>⌂ 百度网盘 / {{ normalizedPathLabel }}</span>
+      <span>共 {{ files.length }} 项</span>
+      <button class="icon-button button secondary" type="button" aria-label="网格视图">▦</button>
+      <button class="icon-button button secondary" type="button" aria-label="列表视图">☷</button>
+      <button class="icon-button button secondary" type="button" aria-label="刷新" @click="scanDirectory">↻</button>
     </div>
 
     <p v-if="error" class="error-text">{{ error }}</p>
@@ -28,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { NetdiskFile } from "shared";
 import EmptyState from "../components/common/EmptyState.vue";
@@ -43,6 +55,7 @@ const keyword = ref("");
 const files = ref<NetdiskFile[]>([]);
 const loading = ref(false);
 const error = ref<string>();
+const normalizedPathLabel = computed(() => path.value.replace(/^\/+/, "") || "/");
 
 void scanDirectory();
 
