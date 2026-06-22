@@ -9,6 +9,17 @@ export interface ChapterRow {
   updated_at: string;
 }
 
+export interface CreateChapterRowInput {
+  id: string;
+  bookId: string;
+  title: string;
+  chapterIndex: number;
+  objectKey: string;
+  wordCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const CHAPTER_COLUMNS = `
   id,
   book_id,
@@ -34,6 +45,36 @@ export async function listChapterRows(db: D1Database, bookId: string): Promise<C
     .all<ChapterRow>();
 
   return result.results ?? [];
+}
+
+export async function createChapterRow(db: D1Database, input: CreateChapterRowInput): Promise<void> {
+  await db
+    .prepare(
+      `
+        INSERT INTO chapters (
+          id,
+          book_id,
+          title,
+          chapter_index,
+          object_key,
+          word_count,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `
+    )
+    .bind(
+      input.id,
+      input.bookId,
+      input.title,
+      input.chapterIndex,
+      input.objectKey,
+      input.wordCount,
+      input.createdAt,
+      input.updatedAt
+    )
+    .run();
 }
 
 export async function findChapterRow(db: D1Database, bookId: string, chapterId: string): Promise<ChapterRow | null> {
