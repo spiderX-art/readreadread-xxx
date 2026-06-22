@@ -29,13 +29,15 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import type { NetdiskFile } from "shared";
 import EmptyState from "../components/common/EmptyState.vue";
 import NetdiskFileRow from "../components/netdisk/NetdiskFileRow.vue";
+import { ApiError } from "../services/api";
 import { listNetdiskFiles, searchNetdiskFiles } from "../services/netdisk.api";
 
 const router = useRouter();
+const route = useRoute();
 const path = ref("/");
 const keyword = ref("");
 const files = ref<NetdiskFile[]>([]);
@@ -53,6 +55,10 @@ async function scanDirectory(): Promise<void> {
     path.value = result.path;
     files.value = result.files;
   } catch (scanError) {
+    if (await redirectToBaiduAuthIfNeeded(scanError)) {
+      return;
+    }
+
     error.value = scanError instanceof Error ? scanError.message : "网盘目录扫描失败";
   } finally {
     loading.value = false;
@@ -67,6 +73,10 @@ async function searchFiles(): Promise<void> {
     const result = await searchNetdiskFiles(keyword.value.trim(), path.value || "/");
     files.value = result.files;
   } catch (scanError) {
+    if (await redirectToBaiduAuthIfNeeded(scanError)) {
+      return;
+    }
+
     error.value = scanError instanceof Error ? scanError.message : "网盘搜索失败";
   } finally {
     loading.value = false;
@@ -94,5 +104,20 @@ function handleFileSelect(file: NetdiskFile): void {
       fileSize: String(file.size)
     }
   });
+}
+
+async function redirectToBaiduAuthIfNeeded(error: unknown): Promise<boolean> {
+  if (!(error instanceof ApiError) || !["BAIDU_NOT_AUTHORIZED", "UNAUTHORIZED"].includes(error.code)) {
+    return false;
+  }
+
+  await router.push({
+    name: "auth",
+    query: {
+      auto: "1",
+      returnTo: route.fullPath
+    }
+  });
+  return true;
 }
 </script>

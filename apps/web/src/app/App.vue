@@ -50,9 +50,15 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { ApiError } from "../services/api";
+import { useAuthStore } from "../stores/auth.store";
 import { useImportSyncStore } from "../stores/import-sync.store";
 
 const importSyncStore = useImportSyncStore();
+const authStore = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 const syncNoticeDismissedAt = ref(0);
 const syncLabel = computed(() => {
   if (importSyncStore.loading) {
@@ -131,6 +137,8 @@ const syncNoticeDescription = computed(() => {
   return "等待下一次自动同步。";
 });
 
+applyBaiduCallbackSession();
+
 onMounted(() => {
   void triggerSync();
   document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -155,7 +163,16 @@ function handleWindowFocus(): void {
 async function triggerSync(): Promise<void> {
   try {
     await importSyncStore.sync();
-  } catch {
+  } catch (syncError) {
+    if (syncError instanceof ApiError && syncError.code === "BAIDU_NOT_AUTHORIZED" && route.name !== "auth") {
+      await router.push({
+        name: "auth",
+        query: {
+          auto: "1",
+          returnTo: route.fullPath
+        }
+      });
+    }
     // The global sync notice and bookshelf page own the visible error state.
   }
 }
@@ -169,7 +186,36 @@ watch(
   }
 );
 
+watch(
+  () => route.fullPath,
+  () => {
+    applyBaiduCallbackSession();
+  }
+);
+
 function dismissSyncNotice(): void {
   syncNoticeDismissedAt.value = importSyncStore.lastStartedAt || Date.now();
+}
+
+function applyBaiduCallbackSession(): void {
+  if (route.query.baidu !== "connected" || typeof route.query.userId !== "string") {
+    return;
+  }
+
+  authStore.setCurrentUser(
+    route.query.userId,
+    typeof route.query.displayName === "string" ? route.query.displayName : undefined
+  );
+
+  const cleanedQuery = { ...route.query };
+  delete cleanedQuery.baidu;
+  delete cleanedQuery.userId;
+  delete cleanedQuery.displayName;
+
+  void router.replace({
+    path: route.path,
+    query: cleanedQuery,
+    hash: route.hash
+  });
 }
 </script>

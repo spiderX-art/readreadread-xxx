@@ -32,8 +32,8 @@ export const useAuthStore = defineStore("auth", {
       this.userId = undefined;
       this.displayName = undefined;
     },
-    async startBaiduLogin() {
-      const { authorizationUrl } = await getBaiduLoginUrl();
+    async startBaiduLogin(returnTo?: string) {
+      const { authorizationUrl } = await getBaiduLoginUrl(returnTo);
       window.location.assign(authorizationUrl);
     }
   }

@@ -15,3 +15,29 @@ export function createBaiduAuthorizationUrl(input: {
 
   return url.toString();
 }
+
+export function createBaiduAuthorizationState(input: { returnTo?: string }): string {
+  return `novel:${JSON.stringify({
+    ...(input.returnTo ? { returnTo: input.returnTo } : {})
+  })}`;
+}
+
+export function parseBaiduAuthorizationState(state: string): { returnTo?: string } {
+  if (!state.startsWith("novel:")) {
+    return {};
+  }
+
+  const parsed = JSON.parse(state.slice("novel:".length)) as Partial<{ returnTo: unknown }>;
+
+  return {
+    returnTo: typeof parsed.returnTo === "string" ? parsed.returnTo : undefined
+  };
+}
+
+export function normalizeFrontendReturnTo(returnTo?: string): string | undefined {
+  if (!returnTo || !returnTo.startsWith("/") || returnTo.startsWith("//")) {
+    return undefined;
+  }
+
+  return returnTo;
+}

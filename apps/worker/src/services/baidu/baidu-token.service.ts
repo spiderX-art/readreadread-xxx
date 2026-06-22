@@ -1,3 +1,4 @@
+import { upsertUserRow } from "../../db/repositories/user.repo";
 import { findLatestBaiduTokenRow, replaceBaiduTokenRow, type BaiduTokenRow } from "../../db/repositories/token.repo";
 import type { Bindings } from "../../env";
 import { AppError } from "../../utils/errors";
@@ -11,6 +12,30 @@ interface BaiduTokenResponse {
   error_description?: string;
 }
 
+interface BaiduUserInfoResponse {
+  openid?: string;
+  userid?: string | number;
+  username?: string;
+  uname?: string;
+  portrait?: string;
+  error?: string;
+  error_code?: string | number;
+  error_msg?: string;
+  error_description?: string;
+}
+
+export interface BaiduAuthorizedUser {
+  id: string;
+  baiduAccountId: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+export interface BaiduAuthorizationResult {
+  user: BaiduAuthorizedUser;
+  token: BaiduTokenRow;
+}
+
 export function isTokenExpired(expiresAt: string, now = new Date()): boolean {
   return new Date(expiresAt).getTime() <= now.getTime();
 }
@@ -18,9 +43,8 @@ export function isTokenExpired(expiresAt: string, now = new Date()): boolean {
 export async function exchangeBaiduAuthorizationCode(
   db: D1Database,
   env: Pick<Bindings, "BAIDU_CLIENT_ID" | "BAIDU_CLIENT_SECRET" | "BAIDU_REDIRECT_URI">,
-  userId: string,
   code: string
-): Promise<BaiduTokenRow> {
+): Promise<BaiduAuthorizationResult> {
   const client = getBaiduClient(env);
   const url = new URL("https://openapi.baidu.com/oauth/2.0/token");
   url.searchParams.set("grant_type", "authorization_code");
@@ -30,7 +54,20 @@ export async function exchangeBaiduAuthorizationCode(
   url.searchParams.set("redirect_uri", client.redirectUri);
 
   const token = await requestToken(url);
-  return saveToken(db, userId, token);
+  const user = await requestBaiduUserInfo(token.access_token);
+  const now = new Date().toISOString();
+
+  await upsertUserRow(db, {
+    id: user.id,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    now
+  });
+
+  return {
+    user,
+    token: await saveToken(db, user.id, token)
+  };
 }
 
 export async function getValidBaiduAccessToken(db: D1Database, env: Bindings, userId: string): Promise<string> {
@@ -85,6 +122,31 @@ async function requestToken(url: URL): Promise<Required<Pick<BaiduTokenResponse,
     ...body,
     access_token: body.access_token,
     expires_in: body.expires_in
+  };
+}
+
+async function requestBaiduUserInfo(accessToken: string): Promise<BaiduAuthorizedUser> {
+  const url = new URL("https://openapi.baidu.com/rest/2.0/passport/users/getInfo");
+  url.searchParams.set("access_token", accessToken);
+  url.searchParams.set("format", "json");
+
+  const response = await fetch(url.toString());
+  const body = (await response.json().catch(() => ({}))) as BaiduUserInfoResponse;
+  const baiduAccountId = (body.openid || (body.userid === undefined ? "" : String(body.userid))).trim();
+
+  if (!response.ok || body.error || body.error_code || !baiduAccountId) {
+    throw new AppError(
+      401,
+      "BAIDU_USER_INFO_FAILED",
+      body.error_description ?? body.error_msg ?? body.error ?? "百度账号信息获取失败"
+    );
+  }
+
+  return {
+    id: `baidu:${baiduAccountId}`,
+    baiduAccountId,
+    displayName: body.username || body.uname || undefined,
+    avatarUrl: body.portrait ? `https://himg.bdimg.com/sys/portrait/item/${encodeURIComponent(body.portrait)}` : undefined
   };
 }
 

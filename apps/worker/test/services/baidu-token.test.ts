@@ -8,6 +8,7 @@ import {
 
 interface TokenDbState {
   tokens: BaiduTokenRow[];
+  users: Array<{ id: string; displayName: string | null; avatarUrl: string | null }>;
 }
 
 const env = {
@@ -22,32 +23,53 @@ describe("baidu token service", () => {
   });
 
   it("exchanges an authorization code and stores the token", async () => {
-    const state: TokenDbState = { tokens: [] };
+    const state: TokenDbState = { tokens: [], users: [] };
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input));
 
-      expect(url.searchParams.get("grant_type")).toBe("authorization_code");
-      expect(url.searchParams.get("code")).toBe("auth-code");
-      expect(url.searchParams.get("client_id")).toBe("client-id");
-      expect(url.searchParams.get("redirect_uri")).toBe(env.BAIDU_REDIRECT_URI);
+      if (url.pathname === "/oauth/2.0/token") {
+        expect(url.searchParams.get("grant_type")).toBe("authorization_code");
+        expect(url.searchParams.get("code")).toBe("auth-code");
+        expect(url.searchParams.get("client_id")).toBe("client-id");
+        expect(url.searchParams.get("redirect_uri")).toBe(env.BAIDU_REDIRECT_URI);
+
+        return jsonResponse({
+          access_token: "access-token",
+          refresh_token: "refresh-token",
+          expires_in: 3600
+        });
+      }
 
       return jsonResponse({
-        access_token: "access-token",
-        refresh_token: "refresh-token",
-        expires_in: 3600
+        openid: "baidu-openid-1",
+        userid: "legacy-user-id",
+        username: "百度用户",
+        portrait: "portrait-token"
       });
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const token = await exchangeBaiduAuthorizationCode(createTokenDbMock(state), env, "user-1", "auth-code");
+    const result = await exchangeBaiduAuthorizationCode(createTokenDbMock(state), env, "auth-code");
 
-    expect(token).toMatchObject({
-      user_id: "user-1",
+    expect(result.user).toMatchObject({
+      id: "baidu:baidu-openid-1",
+      baiduAccountId: "baidu-openid-1",
+      displayName: "百度用户"
+    });
+    expect(result.token).toMatchObject({
+      user_id: "baidu:baidu-openid-1",
       access_token: "access-token",
       refresh_token: "refresh-token"
     });
+    expect(state.users).toEqual([
+      {
+        id: "baidu:baidu-openid-1",
+        displayName: "百度用户",
+        avatarUrl: "https://himg.bdimg.com/sys/portrait/item/portrait-token"
+      }
+    ]);
     expect(state.tokens).toHaveLength(1);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("returns a stored access token when it has not expired", async () => {
@@ -59,7 +81,8 @@ describe("baidu token service", () => {
           refresh_token: "refresh-token",
           expires_at: new Date(Date.now() + 120_000).toISOString()
         })
-      ]
+      ],
+      users: []
     };
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -79,7 +102,8 @@ describe("baidu token service", () => {
           refresh_token: "old-refresh",
           expires_at: new Date(Date.now() - 1000).toISOString()
         })
-      ]
+      ],
+      users: []
     };
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input));
@@ -154,6 +178,23 @@ function runStatement(sql: string, bindings: unknown[], state: TokenDbState): vo
       created_at: createdAt,
       updated_at: updatedAt
     });
+    return;
+  }
+
+  if (normalizedSql.startsWith("insert into users")) {
+    const [id, displayName, avatarUrl] = bindings as [string, string | null, string | null];
+    const existing = state.users.find((user) => user.id === id);
+
+    if (existing) {
+      existing.displayName = displayName;
+      existing.avatarUrl = avatarUrl;
+    } else {
+      state.users.push({
+        id,
+        displayName,
+        avatarUrl
+      });
+    }
     return;
   }
 
