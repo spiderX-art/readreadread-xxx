@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Book, BookSearchQuery, BookStatus } from "shared";
+import type { Book, BookSearchQuery, BookStatus, Tag, TagType } from "shared";
 import {
   deleteBookRow,
   findBookRow,
@@ -8,6 +8,7 @@ import {
   type BookRow,
   type ListBookRowsQuery
 } from "../db/repositories/book.repo";
+import { listTagRowsForBooks, type BookTagRow } from "../db/repositories/tag.repo";
 import type { AppEnv } from "../env";
 import { shouldUpdateLastReadAt } from "../services/books/book.service";
 import { AppError } from "../utils/errors";
@@ -20,8 +21,9 @@ export const bookRoutes = new Hono<AppEnv>();
 bookRoutes.get("/", async (c) => {
   const query = toListBookRowsQuery(c);
   const books = await listBookRows(c.env.DB, c.get("userId"), query);
+  const tagsByBookId = await getTagsByBookId(c.env.DB, c.get("userId"), books);
 
-  return c.json(ok({ items: books.map(toBook), total: books.length }));
+  return c.json(ok({ items: books.map((book) => toBook(book, tagsByBookId.get(book.id))), total: books.length }));
 });
 
 bookRoutes.get("/search", async (c) => {
@@ -33,14 +35,16 @@ bookRoutes.get("/search", async (c) => {
     maxRating: parseOptionalNumber(c.req.query("maxRating"))
   };
   const books = await listBookRows(c.env.DB, c.get("userId"), query);
+  const tagsByBookId = await getTagsByBookId(c.env.DB, c.get("userId"), books);
 
-  return c.json(ok({ query, items: books.map(toBook), total: books.length }));
+  return c.json(ok({ query, items: books.map((book) => toBook(book, tagsByBookId.get(book.id))), total: books.length }));
 });
 
 bookRoutes.get("/:bookId", async (c) => {
   const book = await getOwnedBook(c.env.DB, c.get("userId"), c.req.param("bookId"));
+  const tagsByBookId = await getTagsByBookId(c.env.DB, c.get("userId"), [book]);
 
-  return c.json(ok(toBook(book)));
+  return c.json(ok(toBook(book, tagsByBookId.get(book.id))));
 });
 
 bookRoutes.patch("/:bookId", async (c) => {
@@ -67,7 +71,8 @@ bookRoutes.patch("/:bookId", async (c) => {
   });
 
   const updated = await getOwnedBook(c.env.DB, userId, bookId);
-  return c.json(ok(toBook(updated)));
+  const tagsByBookId = await getTagsByBookId(c.env.DB, userId, [updated]);
+  return c.json(ok(toBook(updated, tagsByBookId.get(updated.id))));
 });
 
 bookRoutes.delete("/:bookId", async (c) => {
@@ -94,7 +99,8 @@ bookRoutes.patch("/:bookId/status", async (c) => {
   });
 
   const updated = await getOwnedBook(c.env.DB, userId, bookId);
-  return c.json(ok(toBook(updated)));
+  const tagsByBookId = await getTagsByBookId(c.env.DB, userId, [updated]);
+  return c.json(ok(toBook(updated, tagsByBookId.get(updated.id))));
 });
 
 async function getOwnedBook(db: D1Database, userId: string, bookId: string): Promise<BookRow> {
@@ -121,7 +127,28 @@ function toListBookRowsQuery(c: {
   };
 }
 
-function toBook(row: BookRow): Book {
+async function getTagsByBookId(
+  db: D1Database,
+  userId: string,
+  books: BookRow[]
+): Promise<Map<string, BookTagRow[]>> {
+  const tags = await listTagRowsForBooks(
+    db,
+    userId,
+    books.map((book) => book.id)
+  );
+  const tagsByBookId = new Map<string, BookTagRow[]>();
+
+  for (const tag of tags) {
+    const bookTags = tagsByBookId.get(tag.book_id) ?? [];
+    bookTags.push(tag);
+    tagsByBookId.set(tag.book_id, bookTags);
+  }
+
+  return tagsByBookId;
+}
+
+function toBook(row: BookRow, tags: BookTagRow[] = []): Book {
   return {
     id: row.id,
     userId: row.user_id,
@@ -138,7 +165,19 @@ function toBook(row: BookRow): Book {
     rating: row.rating ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    lastReadAt: row.last_read_at ?? undefined
+    lastReadAt: row.last_read_at ?? undefined,
+    tags: tags.map(toTag)
+  };
+}
+
+function toTag(row: BookTagRow): Tag {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    type: row.type as TagType,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 

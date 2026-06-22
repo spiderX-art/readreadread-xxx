@@ -292,6 +292,24 @@ a {
   font-size: 0.82rem;
 }
 
+.book-tag {
+  background: #e8f1ec;
+  color: var(--color-green);
+}
+
+.editable-tag-list {
+  margin-bottom: 14px;
+}
+
+.tag-button {
+  border: 0;
+  cursor: pointer;
+}
+
+.tag-editor {
+  margin-top: 12px;
+}
+
 .panel {
   padding: 22px;
 }

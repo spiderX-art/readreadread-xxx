@@ -43,6 +43,36 @@
       </section>
 
       <section class="panel">
+        <h2>标签</h2>
+        <div v-if="book.tags?.length" class="tag-list editable-tag-list">
+          <button v-for="tag in book.tags" :key="tag.id" class="tag tag-button" type="button" @click="removeTag(tag.id)">
+            {{ tag.name }} ×
+          </button>
+        </div>
+        <p v-else class="book-meta">还没有标签。</p>
+        <div class="form-grid tag-editor">
+          <div class="form-row">
+            <select v-model="selectedTagId" class="select-input">
+              <option value="">选择已有标签</option>
+              <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
+            </select>
+            <button class="button secondary" type="button" :disabled="savingTag || !selectedTagId" @click="addSelectedTag">
+              {{ savingTag ? "保存中" : "添加标签" }}
+            </button>
+          </div>
+          <div class="form-row">
+            <input v-model="newTagName" class="text-input" maxlength="24" placeholder="新标签名称" />
+            <select v-model="newTagType" class="select-input">
+              <option v-for="type in TAG_TYPES" :key="type" :value="type">{{ tagTypeLabels[type] }}</option>
+            </select>
+            <button class="button secondary" type="button" :disabled="savingTag || !newTagName.trim()" @click="createAndAttachTag">
+              新建并添加
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2>评分</h2>
         <RatingGrid :book-id="bookId" @saved="handleRatingSaved" />
       </section>
@@ -104,9 +134,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import type { BookStatus } from "shared";
+import { TAG_TYPES, type BookStatus, type Tag, type TagType } from "shared";
 import RatingGrid from "../components/rating/RatingGrid.vue";
 import { getBookReview, getDropReason, saveBookReview, saveDropReason, updateBookStatus } from "../services/books.api";
+import { attachTagToBook, createTag, detachTagFromBook, listTags } from "../services/tags.api";
 import { useBooksStore } from "../stores/books.store";
 import { bookStatusLabels } from "../utils/format";
 
@@ -120,11 +151,16 @@ const error = ref<string>();
 const savingStatus = ref(false);
 const savingReview = ref(false);
 const savingDropReason = ref(false);
+const savingTag = ref(false);
 const deleting = ref(false);
 const confirmingDelete = ref(false);
 const actionMessage = ref<string>();
 const actionError = ref<string>();
 const statusDraft = ref<BookStatus>("not_started");
+const tags = ref<Tag[]>([]);
+const selectedTagId = ref("");
+const newTagName = ref("");
+const newTagType = ref<TagType>("custom");
 const reviewForm = reactive({
   shortComment: "",
   fullReview: "",
@@ -138,6 +174,14 @@ const dropReasonForm = reactive({
   note: "",
   mayReadLater: false
 });
+const tagTypeLabels: Record<TagType, string> = {
+  genre: "题材",
+  experience: "体验",
+  warning: "避雷",
+  custom: "自定义"
+};
+const attachedTagIds = computed(() => new Set(book.value?.tags?.map((tag) => tag.id) ?? []));
+const availableTags = computed(() => tags.value.filter((tag) => !attachedTagIds.value.has(tag.id)));
 
 watch(
   bookId,
@@ -165,7 +209,7 @@ async function loadDetail() {
 
   try {
     await booksStore.fetchBook(bookId.value);
-    const [review, dropReason] = await Promise.all([getBookReview(bookId.value), getDropReason(bookId.value)]);
+    const [review, dropReason, tagResult] = await Promise.all([getBookReview(bookId.value), getDropReason(bookId.value), listTags()]);
     reviewForm.shortComment = review?.shortComment ?? "";
     reviewForm.fullReview = review?.fullReview ?? "";
     reviewForm.recommendReason = review?.recommendReason ?? "";
@@ -175,6 +219,9 @@ async function loadDetail() {
     dropReasonForm.reason = dropReason?.reason ?? "";
     dropReasonForm.note = dropReason?.note ?? "";
     dropReasonForm.mayReadLater = dropReason?.mayReadLater ?? false;
+    tags.value = tagResult.items;
+    selectedTagId.value = "";
+    newTagName.value = "";
   } catch (loadError) {
     error.value = loadError instanceof Error ? loadError.message : "书籍详情加载失败";
   } finally {
@@ -248,6 +295,66 @@ async function saveDropReasonForm() {
     showError(saveError, "弃读原因保存失败");
   } finally {
     savingDropReason.value = false;
+  }
+}
+
+async function addSelectedTag() {
+  if (!selectedTagId.value) {
+    return;
+  }
+
+  savingTag.value = true;
+  clearActionFeedback();
+
+  try {
+    await attachTagToBook(bookId.value, selectedTagId.value);
+    selectedTagId.value = "";
+    await refreshBook();
+    showSuccess("标签已添加");
+  } catch (saveError) {
+    showError(saveError, "标签添加失败");
+  } finally {
+    savingTag.value = false;
+  }
+}
+
+async function createAndAttachTag() {
+  const name = newTagName.value.trim();
+
+  if (!name) {
+    return;
+  }
+
+  savingTag.value = true;
+  clearActionFeedback();
+
+  try {
+    const tag = await createTag({ name, type: newTagType.value });
+    tags.value = [...tags.value, tag];
+    await attachTagToBook(bookId.value, tag.id);
+    newTagName.value = "";
+    selectedTagId.value = "";
+    await refreshBook();
+    showSuccess("标签已添加");
+  } catch (saveError) {
+    showError(saveError, "标签添加失败");
+  } finally {
+    savingTag.value = false;
+  }
+}
+
+async function removeTag(tagId: string) {
+  savingTag.value = true;
+  clearActionFeedback();
+
+  try {
+    await detachTagFromBook(bookId.value, tagId);
+    await refreshBook();
+    showSuccess("标签已移除");
+  } catch (saveError) {
+    showError(saveError, "标签移除失败");
+  } finally {
+    savingTag.value = false;
   }
 }
 

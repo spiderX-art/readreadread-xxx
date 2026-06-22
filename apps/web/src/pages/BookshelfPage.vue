@@ -23,8 +23,13 @@
         <option value="7">7 分及以上</option>
         <option value="6">6 分及以上</option>
       </select>
+      <select v-model="selectedTag" class="select-input">
+        <option value="">全部标签</option>
+        <option v-for="tag in tags" :key="tag.id" :value="tag.name">{{ tag.name }}</option>
+      </select>
       <button v-if="filtersActive" class="button secondary" type="button" @click="resetFilters">清空筛选</button>
     </div>
+    <p v-if="tagError" class="error-text">{{ tagError }}</p>
 
     <p v-if="booksStore.loading" class="muted">正在加载书架...</p>
     <section v-else-if="booksStore.error" class="panel state-panel">
@@ -57,26 +62,32 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { BOOK_STATUSES, type BookSearchQuery, type BookStatus } from "shared";
+import { BOOK_STATUSES, type BookSearchQuery, type BookStatus, type Tag } from "shared";
 import BookCard from "../components/book/BookCard.vue";
 import EmptyState from "../components/common/EmptyState.vue";
 import { useBooksStore } from "../stores/books.store";
+import { listTags } from "../services/tags.api";
 import { bookStatusLabels } from "../utils/format";
 
 const booksStore = useBooksStore();
 const keyword = ref("");
 const status = ref("");
 const ratingRange = ref("");
+const selectedTag = ref("");
+const tags = ref<Tag[]>([]);
+const tagError = ref<string>();
 
 const books = computed(() => booksStore.books);
-const filtersActive = computed(() => Boolean(keyword.value.trim() || status.value || ratingRange.value));
+const filtersActive = computed(() => Boolean(keyword.value.trim() || status.value || ratingRange.value || selectedTag.value));
 const ratingQuery = computed(() => {
   const minimum = Number(ratingRange.value);
   return Number.isFinite(minimum) && minimum > 0 ? { minRating: minimum } : {};
 });
 
+void loadTags();
+
 watch(
-  [keyword, status, ratingRange],
+  [keyword, status, ratingRange, selectedTag],
   () => {
     void loadBooks();
   },
@@ -87,6 +98,7 @@ async function loadBooks(): Promise<void> {
   const query: BookSearchQuery = {
     q: keyword.value.trim() || undefined,
     status: (status.value || undefined) as BookStatus | undefined,
+    tag: selectedTag.value || undefined,
     ...ratingQuery.value
   };
 
@@ -97,9 +109,21 @@ async function loadBooks(): Promise<void> {
   }
 }
 
+async function loadTags(): Promise<void> {
+  tagError.value = undefined;
+
+  try {
+    const result = await listTags();
+    tags.value = result.items;
+  } catch (error) {
+    tagError.value = error instanceof Error ? error.message : "标签加载失败";
+  }
+}
+
 function resetFilters(): void {
   keyword.value = "";
   status.value = "";
   ratingRange.value = "";
+  selectedTag.value = "";
 }
 </script>

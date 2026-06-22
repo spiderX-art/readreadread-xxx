@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ApiResponse, Book, BookRating, DropReason, PageResult, Review } from "shared";
+import type { ApiResponse, Book, BookRating, DropReason, PageResult, Review, Tag } from "shared";
 import type { BookRow } from "../../src/db/repositories/book.repo";
 import type { ChapterRow } from "../../src/db/repositories/chapter.repo";
 import type { RatingRow } from "../../src/db/repositories/rating.repo";
 import type { DropReasonRow, ReviewRow } from "../../src/db/repositories/review.repo";
+import type { BookTagRow, TagRow } from "../../src/db/repositories/tag.repo";
 import type { Bindings } from "../../src/env";
 import { app } from "../../src/index";
 
@@ -16,6 +17,8 @@ interface TestDatabaseState {
   ratings: RatingRow[];
   reviews: ReviewRow[];
   dropReasons: DropReasonRow[];
+  tags: TagRow[];
+  bookTags: BookTagRow[];
 }
 
 describe("book routes", () => {
@@ -59,6 +62,56 @@ describe("book routes", () => {
       throw new Error(bookshelfSearchBody.error.message);
     }
     expect(bookshelfSearchBody.data.items.map((book) => book.id)).toEqual(["book-1"]);
+
+    const createTagResponse = await app.request(
+      "/api/tags",
+      {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          name: "仙侠",
+          type: "genre"
+        })
+      },
+      env
+    );
+    const createTagBody = (await createTagResponse.json()) as ApiResponse<Tag>;
+
+    expect(createTagResponse.status).toBe(201);
+    expect(createTagBody.ok).toBe(true);
+    if (!createTagBody.ok) {
+      throw new Error(createTagBody.error.message);
+    }
+
+    const attachTagResponse = await app.request(
+      "/api/books/book-1/tags",
+      {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          tagId: createTagBody.data.id
+        })
+      },
+      env
+    );
+
+    expect(attachTagResponse.status).toBe(201);
+
+    const taggedSearchResponse = await app.request("/api/books/search?tag=%E4%BB%99%E4%BE%A0", { headers: authHeaders }, env);
+    const taggedSearchBody = (await taggedSearchResponse.json()) as ApiResponse<PageResult<Book>>;
+
+    expect(taggedSearchResponse.status).toBe(200);
+    expect(taggedSearchBody.ok).toBe(true);
+    if (!taggedSearchBody.ok) {
+      throw new Error(taggedSearchBody.error.message);
+    }
+    expect(taggedSearchBody.data.items[0].tags?.map((tag) => tag.name)).toEqual(["仙侠"]);
 
     const fulltextSearchResponse = await app.request("/api/books/book-1/search?q=灯火", { headers: authHeaders }, env);
     const fulltextSearchBody = (await fulltextSearchResponse.json()) as ApiResponse<{
@@ -211,7 +264,9 @@ function createTestEnv() {
     ],
     ratings: [],
     reviews: [],
-    dropReasons: []
+    dropReasons: [],
+    tags: [],
+    bookTags: []
   };
   const objects = new Map([
     ["users/user-1/books/book-1/chapters/1.txt", "雨声很密。"],
@@ -323,6 +378,45 @@ function runStatement(sql: string, bindings: unknown[], state: TestDatabaseState
       state.ratings.push(row);
     }
 
+    return;
+  }
+
+  if (normalizedSql.startsWith("insert into tags")) {
+    const [id, userId, name, type, createdAt, updatedAt] = bindings as [string, string, string, string, string, string];
+
+    if (state.tags.some((tag) => tag.user_id === userId && tag.name === name)) {
+      throw new Error("UNIQUE constraint failed: tags.user_id, tags.name");
+    }
+
+    state.tags.push({
+      id,
+      user_id: userId,
+      name,
+      type,
+      created_at: createdAt,
+      updated_at: updatedAt
+    });
+    return;
+  }
+
+  if (normalizedSql.startsWith("insert or ignore into book_tags")) {
+    const [bookId, tagId] = bindings as [string, string, string];
+    const tag = state.tags.find((item) => item.id === tagId);
+
+    if (!tag || state.bookTags.some((bookTag) => bookTag.book_id === bookId && bookTag.id === tagId)) {
+      return;
+    }
+
+    state.bookTags.push({
+      book_id: bookId,
+      ...tag
+    });
+    return;
+  }
+
+  if (normalizedSql.startsWith("delete from book_tags where book_id = ? and tag_id = ?")) {
+    const [bookId, tagId] = bindings as [string, string];
+    state.bookTags = state.bookTags.filter((bookTag) => bookTag.book_id !== bookId || bookTag.id !== tagId);
     return;
   }
 
@@ -470,7 +564,27 @@ function queryStatement(sql: string, bindings: unknown[], state: TestDatabaseSta
       });
     }
 
+    if (normalizedSql.includes("from book_tags") && normalizedSql.includes("tags.name = ?")) {
+      const tagName = String(bindings.at(-1));
+      books = books.filter((book) =>
+        state.bookTags.some((bookTag) => bookTag.book_id === book.id && bookTag.user_id === book.user_id && bookTag.name === tagName)
+      );
+    }
+
     return books;
+  }
+
+  if (normalizedSql.includes("from book_tags")) {
+    const [userId, ...bookIds] = bindings as [string, ...string[]];
+    return state.bookTags
+      .filter((bookTag) => bookTag.user_id === userId && bookIds.includes(bookTag.book_id))
+      .sort((left, right) => left.type.localeCompare(right.type) || left.name.localeCompare(right.name));
+  }
+
+  if (normalizedSql.includes("from tags")) {
+    const [userId, tagId] = bindings as [string, string | undefined];
+    const tags = state.tags.filter((tag) => tag.user_id === userId && (tagId === undefined || tag.id === tagId));
+    return tags.sort((left, right) => left.type.localeCompare(right.type) || left.name.localeCompare(right.name));
   }
 
   if (normalizedSql.includes("from chapters")) {

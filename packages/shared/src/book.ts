@@ -1,3 +1,5 @@
+import type { Tag } from "./tag";
+
 export const BOOK_STATUSES = [
   "not_started",
   "reading",
@@ -29,6 +31,7 @@ export interface Book {
   createdAt: string;
   updatedAt: string;
   lastReadAt?: string;
+  tags?: Tag[];
 }
 
 export interface BookSearchQuery {

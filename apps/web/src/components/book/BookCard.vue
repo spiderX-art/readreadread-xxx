@@ -8,6 +8,7 @@
     <div class="tag-list">
       <span class="tag">{{ book.chapterCount }} 章</span>
       <span v-if="book.rating" class="tag">{{ book.rating.toFixed(1) }} 分</span>
+      <span v-for="tag in book.tags ?? []" :key="tag.id" class="tag book-tag">{{ tag.name }}</span>
     </div>
 
     <RouterLink class="button secondary" :to="`/books/${book.id}`">查看详情</RouterLink>
