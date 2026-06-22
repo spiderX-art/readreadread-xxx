@@ -9,6 +9,8 @@
 
     <div class="panel">
       <form class="form-grid" @submit.prevent="saveUser">
+        <p v-if="message" class="success-text">{{ message }}</p>
+        <p v-if="error" class="error-text">{{ error }}</p>
         <label>
           当前用户 ID
           <input v-model="userIdDraft" class="text-input" placeholder="例如 baidu-uid-123" />
@@ -31,23 +33,53 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { useRoute } from "vue-router";
 import { useAuthStore } from "../stores/auth.store";
 
+const route = useRoute();
 const authStore = useAuthStore();
 const userIdDraft = ref(authStore.userId ?? "");
 const displayNameDraft = ref(authStore.displayName ?? "");
+const message = ref(route.query.baidu === "connected" ? "百度网盘授权已完成" : "");
+const error = ref("");
 
 function saveUser(): void {
-  authStore.setCurrentUser(userIdDraft.value, displayNameDraft.value);
+  error.value = "";
+  message.value = "";
+
+  try {
+    authStore.setCurrentUser(userIdDraft.value, displayNameDraft.value);
+    message.value = "当前用户已保存";
+  } catch (saveError) {
+    error.value = saveError instanceof Error ? saveError.message : "用户保存失败";
+  }
 }
 
 function logout(): void {
   authStore.logout();
   userIdDraft.value = "";
   displayNameDraft.value = "";
+  message.value = "";
+  error.value = "";
 }
 
-function login(): void {
-  void authStore.startBaiduLogin();
+async function login(): Promise<void> {
+  error.value = "";
+  message.value = "";
+
+  if (!authStore.userId || authStore.userId !== userIdDraft.value.trim()) {
+    try {
+      authStore.setCurrentUser(userIdDraft.value, displayNameDraft.value);
+    } catch (saveError) {
+      error.value = saveError instanceof Error ? saveError.message : "请先保存当前用户";
+      return;
+    }
+  }
+
+  try {
+    await authStore.startBaiduLogin();
+  } catch (loginError) {
+    error.value = loginError instanceof Error ? loginError.message : "百度授权启动失败";
+  }
 }
 </script>

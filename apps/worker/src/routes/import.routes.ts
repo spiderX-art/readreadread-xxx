@@ -1,7 +1,9 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { ImportPreview } from "shared";
 import { findImportJobRow, type ImportJobRow } from "../db/repositories/import-job.repo";
 import type { AppEnv } from "../env";
+import { downloadBaiduTxtFile } from "../services/baidu/baidu-file.service";
+import { getValidBaiduAccessToken } from "../services/baidu/baidu-token.service";
 import { parseTxtChapters } from "../services/import/chapter-parser.service";
 import { importTxtBook, previewTxtImport } from "../services/import/txt-import.service";
 import { AppError } from "../utils/errors";
@@ -28,8 +30,9 @@ importRoutes.post("/preview", async (c) => {
     return c.json(fail("INVALID_IMPORT_PREVIEW", "缺少导入预览所需文件信息"), 400);
   }
 
+  const sampleText = body.sampleText ?? (await getBaiduTxtTextIfNeeded(c, body));
   const parsed = previewTxtImport(body.fileName);
-  const chapters = body.sampleText ? parseTxtChapters(body.sampleText) : [];
+  const chapters = sampleText ? parseTxtChapters(sampleText) : [];
   const preview: ImportPreview = {
     sourceFileId: body.sourceFileId,
     sourcePath: body.sourcePath,
@@ -52,22 +55,29 @@ importRoutes.post("/txt", async (c) => {
     return c.json(fail("INVALID_TXT_IMPORT", "缺少 TXT 导入所需文件信息"), 400);
   }
 
-  const text = body.text ?? body.content ?? body.sampleText;
+  let text = body.text ?? body.content ?? body.sampleText;
+  let fileName = body.fileName;
+  let sourcePath = body.sourcePath;
+  let fileSize = body.fileSize;
 
   if (typeof text !== "string" || !text.trim()) {
-    return c.json(fail("INVALID_TXT_IMPORT", "缺少 TXT 正文"), 400);
+    const downloaded = await downloadBaiduTxtForRequest(c, body);
+    text = downloaded.text;
+    fileName = downloaded.fileName;
+    sourcePath = downloaded.path;
+    fileSize = downloaded.fileSize;
   }
 
-  const fileSize =
-    typeof body.fileSize === "number" && Number.isFinite(body.fileSize)
-      ? body.fileSize
+  const resolvedFileSize =
+    typeof fileSize === "number" && Number.isFinite(fileSize)
+      ? fileSize
       : new TextEncoder().encode(text).byteLength;
   const result = await importTxtBook(c.env.DB, c.env.BOOK_BUCKET, {
     userId: c.get("userId"),
     sourceFileId: body.sourceFileId,
-    sourcePath: body.sourcePath,
-    fileName: body.fileName,
-    fileSize,
+    sourcePath,
+    fileName,
+    fileSize: resolvedFileSize,
     text,
     title: body.title,
     author: body.author
@@ -99,4 +109,25 @@ function toImportJob(job: ImportJobRow) {
     createdAt: job.created_at,
     updatedAt: job.updated_at
   };
+}
+
+async function getBaiduTxtTextIfNeeded(c: Context<AppEnv>, body: ImportPreviewRequest) {
+  if (!body.sourceFileId) {
+    return undefined;
+  }
+
+  const downloaded = await downloadBaiduTxtForRequest(c, body);
+  return downloaded.text;
+}
+
+async function downloadBaiduTxtForRequest(
+  c: Context<AppEnv>,
+  body: ImportPreviewRequest
+) {
+  const accessToken = await getValidBaiduAccessToken(c.env.DB, c.env, c.get("userId"));
+  return downloadBaiduTxtFile(accessToken, {
+    fsId: body.sourceFileId!,
+    fileName: body.fileName,
+    fileSize: body.fileSize
+  });
 }

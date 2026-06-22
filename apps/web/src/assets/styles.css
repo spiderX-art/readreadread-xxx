@@ -310,6 +310,21 @@ a {
   margin-top: 12px;
 }
 
+.file-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.netdisk-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
 .panel {
   padding: 22px;
 }
