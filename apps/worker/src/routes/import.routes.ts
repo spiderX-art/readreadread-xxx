@@ -127,7 +127,7 @@ async function assertNotImported(c: Context<AppEnv>, sourceFileId: string): Prom
   const existingBook = await findBookRowBySourceFileId(c.env.DB, c.get("userId"), sourceFileId);
 
   if (existingBook) {
-    throw new AppError(409, "BOOK_ALREADY_IMPORTED", "该网盘文件已导入书架");
+    throw new AppError(409, "BOOK_ALREADY_IMPORTED", "该网盘文件已导入书架", { bookId: existingBook.id });
   }
 }
 

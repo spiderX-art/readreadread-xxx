@@ -80,6 +80,11 @@ function handleFileSelect(file: NetdiskFile): void {
     return;
   }
 
+  if (file.imported && file.bookId) {
+    void router.push({ name: "book-detail", params: { bookId: file.bookId } });
+    return;
+  }
+
   void router.push({
     name: "import-confirm",
     query: {

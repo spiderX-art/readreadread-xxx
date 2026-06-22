@@ -47,7 +47,7 @@ export async function importTxtBook(db: D1Database, bucket: R2Bucket, input: Txt
   const existingBook = await findBookRowBySourceFileId(db, input.userId, input.sourceFileId);
 
   if (existingBook) {
-    throw new AppError(409, "BOOK_ALREADY_IMPORTED", "该网盘文件已导入书架");
+    throw new AppError(409, "BOOK_ALREADY_IMPORTED", "该网盘文件已导入书架", { bookId: existingBook.id });
   }
 
   await createImportJobRow(db, {

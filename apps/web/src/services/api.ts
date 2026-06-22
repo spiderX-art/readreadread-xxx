@@ -3,6 +3,17 @@ import { getAuthSession } from "./auth-session";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8787";
 
+export class ApiError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly data?: unknown
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: createHeaders()
@@ -62,7 +73,7 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
   const body = (await response.json()) as ApiResponse<T>;
 
   if (!body.ok) {
-    throw new Error(body.error.message);
+    throw new ApiError(body.error.code, body.error.message, body.error.data);
   }
 
   return body.data;

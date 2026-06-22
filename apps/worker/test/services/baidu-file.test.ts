@@ -3,6 +3,7 @@ import { AppError } from "../../src/utils/errors";
 import {
   downloadBaiduTxtFile,
   listBaiduNetdiskFiles,
+  markImportedFiles,
   searchBaiduNetdiskFiles
 } from "../../src/services/baidu/baidu-file.service";
 
@@ -55,6 +56,18 @@ describe("baidu file service", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(searchBaiduNetdiskFiles("access-token", "凡人", "/小说")).resolves.toHaveLength(1);
+  });
+
+  it("marks imported files with their existing book id", () => {
+    const files = [
+      { fsId: "1", name: "玄幻", path: "/小说/玄幻", size: 0, isDir: true },
+      { fsId: "2", name: "书.txt", path: "/小说/书.txt", size: 2048, isDir: false, ext: "txt" }
+    ];
+
+    expect(markImportedFiles(files, new Map([["2", "book-2"]]))).toEqual([
+      expect.objectContaining({ fsId: "1", imported: false, bookId: undefined }),
+      expect.objectContaining({ fsId: "2", imported: true, bookId: "book-2" })
+    ]);
   });
 
   it("downloads and decodes a TXT file", async () => {

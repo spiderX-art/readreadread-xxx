@@ -7,12 +7,13 @@ export function ok<T>(data: T): ApiSuccess<T> {
   };
 }
 
-export function fail(code: string, message: string): ApiFailure {
+export function fail(code: string, message: string, data?: unknown): ApiFailure {
   return {
     ok: false,
     error: {
       code,
-      message
+      message,
+      ...(data === undefined ? {} : { data })
     }
   };
 }

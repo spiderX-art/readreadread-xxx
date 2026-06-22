@@ -7,6 +7,7 @@ export interface NetdiskFile {
   ext?: string;
   modifiedAt?: string;
   imported?: boolean;
+  bookId?: string;
 }
 
 export interface ImportPreview {

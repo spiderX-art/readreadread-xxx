@@ -35,6 +35,7 @@ const BOOK_COLUMNS = `
   updated_at,
   last_read_at
 `;
+const MAX_SOURCE_FILE_IDS_PER_QUERY = 900;
 
 export interface CreateBookRowInput {
   id: string;
@@ -152,6 +153,41 @@ export async function findBookRowBySourceFileId(
     )
     .bind(userId, sourceFileId)
     .first<BookRow>();
+}
+
+export async function listBookRowsBySourceFileIds(
+  db: D1Database,
+  userId: string,
+  sourceFileIds: string[]
+): Promise<Pick<BookRow, "id" | "source_file_id">[]> {
+  const uniqueSourceFileIds = [...new Set(sourceFileIds.filter((sourceFileId) => sourceFileId.trim()))];
+
+  if (uniqueSourceFileIds.length === 0) {
+    return [];
+  }
+
+  const rows: Pick<BookRow, "id" | "source_file_id">[] = [];
+
+  for (let index = 0; index < uniqueSourceFileIds.length; index += MAX_SOURCE_FILE_IDS_PER_QUERY) {
+    const batch = uniqueSourceFileIds.slice(index, index + MAX_SOURCE_FILE_IDS_PER_QUERY);
+    const placeholders = batch.map(() => "?").join(", ");
+    const result = await db
+      .prepare(
+        `
+          SELECT id, source_file_id
+          FROM books
+          WHERE user_id = ?
+            AND source_file_id IN (${placeholders})
+          ORDER BY created_at DESC
+        `
+      )
+      .bind(userId, ...batch)
+      .all<Pick<BookRow, "id" | "source_file_id">>();
+
+    rows.push(...(result.results ?? []));
+  }
+
+  return rows;
 }
 
 export async function createBookRow(db: D1Database, input: CreateBookRowInput): Promise<void> {

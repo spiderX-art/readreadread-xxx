@@ -148,7 +148,10 @@ describe("TXT import route", () => {
     expect(duplicateBody).toMatchObject({
       ok: false,
       error: {
-        code: "BOOK_ALREADY_IMPORTED"
+        code: "BOOK_ALREADY_IMPORTED",
+        data: {
+          bookId: importBody.data.book.id
+        }
       }
     });
     expect(state.books).toHaveLength(1);

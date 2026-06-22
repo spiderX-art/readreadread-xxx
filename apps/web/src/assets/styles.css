@@ -325,6 +325,13 @@ a {
   padding: 16px;
 }
 
+.file-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .panel {
   padding: 22px;
 }

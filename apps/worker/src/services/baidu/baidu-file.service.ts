@@ -2,10 +2,11 @@ import { detectEncoding } from "parser";
 import type { NetdiskFile } from "shared";
 import { AppError } from "../../utils/errors";
 
-export function markImportedFiles(files: NetdiskFile[], importedFileIds: Set<string>): NetdiskFile[] {
+export function markImportedFiles(files: NetdiskFile[], importedBooksBySourceFileId: Map<string, string>): NetdiskFile[] {
   return files.map((file) => ({
     ...file,
-    imported: importedFileIds.has(file.fsId)
+    imported: importedBooksBySourceFileId.has(file.fsId),
+    bookId: importedBooksBySourceFileId.get(file.fsId)
   }));
 }
 

@@ -48,6 +48,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { ImportPreview } from "shared";
+import { ApiError } from "../services/api";
 import { importTxtFromNetdisk, previewTxtImport, type ImportTxtRequest } from "../services/import.api";
 import { formatFileSize } from "../utils/format";
 
@@ -112,6 +113,15 @@ async function confirmImport(): Promise<void> {
     message.value = "导入成功";
     await router.push({ name: "book-detail", params: { bookId: result.book.id } });
   } catch (importError) {
+    if (importError instanceof ApiError && importError.code === "BOOK_ALREADY_IMPORTED") {
+      const bookId = getDuplicateBookId(importError.data);
+
+      if (bookId) {
+        await router.push({ name: "book-detail", params: { bookId } });
+        return;
+      }
+    }
+
     actionError.value = importError instanceof Error ? importError.message : "导入失败";
   } finally {
     importing.value = false;
@@ -125,5 +135,14 @@ function createRequest(): ImportTxtRequest {
     fileName: fileName.value,
     fileSize: Number.isFinite(fileSize.value) ? fileSize.value : 0
   };
+}
+
+function getDuplicateBookId(data: unknown): string | undefined {
+  if (!data || typeof data !== "object" || !("bookId" in data)) {
+    return undefined;
+  }
+
+  const bookId = (data as { bookId?: unknown }).bookId;
+  return typeof bookId === "string" && bookId ? bookId : undefined;
 }
 </script>
