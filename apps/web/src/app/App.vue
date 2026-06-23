@@ -10,9 +10,9 @@
       </RouterLink>
 
       <nav class="nav-links">
-        <RouterLink to="/books"><span>书</span>书架</RouterLink>
-        <RouterLink to="/netdisk"><span>盘</span>网盘导入</RouterLink>
-        <RouterLink to="/auth"><span>权</span>授权管理</RouterLink>
+        <RouterLink to="/books"><span class="nav-link-icon"><BookOpen aria-hidden="true" /></span>书架</RouterLink>
+        <RouterLink to="/netdisk"><span class="nav-link-icon"><Cloud aria-hidden="true" /></span>网盘导入</RouterLink>
+        <RouterLink to="/auth"><span class="nav-link-icon"><ShieldCheck aria-hidden="true" /></span>授权管理</RouterLink>
       </nav>
 
       <section class="nav-stats" aria-label="同步状态">
@@ -39,7 +39,7 @@
 
       <div class="nav-account" aria-label="当前账号">
         <span class="account-avatar">{{ accountInitial }}</span>
-        <span class="account-caret">⌄</span>
+        <ChevronDown class="account-caret" aria-hidden="true" />
       </div>
     </header>
 
@@ -54,12 +54,14 @@
         aria-live="polite"
       >
         <div class="sync-notice-content">
-          <span class="sync-notice-icon" aria-hidden="true">⇩</span>
+          <span class="sync-notice-icon" aria-hidden="true"><CloudDownload /></span>
           <div>
             <p>{{ syncNoticeTitle }}</p>
             <span>{{ syncNoticeDescription }}</span>
           </div>
-          <button class="sync-notice-close" type="button" aria-label="关闭同步提示" @click="dismissSyncNotice">×</button>
+          <button class="sync-notice-close" type="button" aria-label="关闭同步提示" @click="dismissSyncNotice">
+            <X aria-hidden="true" />
+          </button>
         </div>
         <div class="sync-progress" role="progressbar" :aria-valuenow="syncProgressPercent">
           <span :style="{ width: `${syncProgressPercent}%` }" />
@@ -72,6 +74,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { BookOpen, ChevronDown, Cloud, CloudDownload, ShieldCheck, X } from "@lucide/vue";
 import { useRoute, useRouter } from "vue-router";
 import { ApiError } from "../services/api";
 import { useAuthStore } from "../stores/auth.store";

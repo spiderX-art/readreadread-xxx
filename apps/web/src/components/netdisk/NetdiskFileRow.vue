@@ -1,6 +1,9 @@
 <template>
   <li class="panel netdisk-file-row">
-    <span class="file-type-icon" aria-hidden="true">{{ file.isDir ? "DIR" : "TXT" }}</span>
+    <span class="file-type-icon" aria-hidden="true">
+      <Folder v-if="file.isDir" />
+      <FileText v-else />
+    </span>
     <div class="netdisk-file-main">
       <div class="file-title-row">
         <strong>{{ file.name }}</strong>
@@ -16,6 +19,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { FileText, Folder } from "@lucide/vue";
 import type { NetdiskFile } from "shared";
 import { formatFileSize } from "../../utils/format";
 

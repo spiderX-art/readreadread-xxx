@@ -5,7 +5,7 @@
         <h1>书架</h1>
         <p>共 {{ totalCount }} 本 · {{ readingCount }} 本在读</p>
       </div>
-      <RouterLink class="button add-book-button" to="/netdisk">+ 添加书籍</RouterLink>
+      <RouterLink class="button add-book-button" to="/netdisk"><Plus aria-hidden="true" />添加书籍</RouterLink>
     </header>
 
     <section class="sync-strip" :class="{ 'sync-strip-error': importSyncStore.error }">
@@ -22,6 +22,7 @@
         </div>
       </div>
       <button class="button secondary" type="button" :disabled="importSyncStore.loading" @click="manualSync">
+        <RefreshCw aria-hidden="true" />
         {{ importSyncStore.loading ? "同步中" : "立即同步" }}
       </button>
     </section>
@@ -72,7 +73,7 @@
 
     <div class="bookshelf-controls">
       <label class="book-search">
-        <span>⌕</span>
+        <Search aria-hidden="true" />
         <input v-model="keyword" placeholder="搜索书名、作者、标签..." />
       </label>
 
@@ -140,6 +141,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { Plus, RefreshCw, Search } from "@lucide/vue";
 import type { Book, BookSearchQuery, BookStatus, SyncJobItem, Tag } from "shared";
 import BookCard from "../components/book/BookCard.vue";
 import EmptyState from "../components/common/EmptyState.vue";

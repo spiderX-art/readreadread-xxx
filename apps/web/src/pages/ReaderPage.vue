@@ -1,15 +1,16 @@
 <template>
-  <section>
+  <section class="reader-page" :class="readerPageThemeClass">
     <ReaderToolbar
       :can-previous="hasPreviousChapter"
       :can-next="hasNextChapter"
       :progress-label="progressLabel"
+      :theme="settings.theme"
       :saving="savingProgress"
       @previous-chapter="goToPreviousChapter"
       @next-chapter="goToNextChapter"
       @decrease-font="settings.decreaseFontSize"
       @increase-font="settings.increaseFontSize"
-      @toggle-theme="settings.toggleTheme"
+      @set-theme="settings.setTheme"
     />
 
     <div v-if="loading" class="panel reader-message">正在加载章节...</div>
@@ -72,6 +73,7 @@ const progressLabel = computed(() =>
   currentChapterIndex.value >= 0 ? `第 ${currentChapterIndex.value + 1} / ${chapters.value.length} 章` : "未选择章节"
 );
 const readerThemeClass = computed(() => `reader-theme-${settings.theme}`);
+const readerPageThemeClass = computed(() => `reader-page-${settings.theme}`);
 
 const SCROLL_SAVE_THROTTLE_MS = 800;
 

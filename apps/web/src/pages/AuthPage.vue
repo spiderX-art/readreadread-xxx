@@ -8,7 +8,9 @@
     </header>
 
     <section class="auth-hero panel">
-      <div class="auth-mark" :class="{ connected: authStore.userId }" aria-hidden="true">∞</div>
+      <div class="auth-mark" :class="{ connected: authStore.userId }" aria-hidden="true">
+        <ShieldCheck />
+      </div>
       <div class="auth-copy">
         <h2>{{ authStore.userId ? "百度网盘已授权" : "等待百度网盘授权" }}</h2>
         <p v-if="message" class="success-text">{{ message }}</p>
@@ -21,9 +23,13 @@
       <div class="auth-actions">
         <div class="form-row">
           <button class="button" type="button" :disabled="autoStarting" @click="login">
+            <RotateCw v-if="authStore.userId" aria-hidden="true" />
+            <Cloud v-else aria-hidden="true" />
             {{ connectButtonLabel }}
           </button>
-          <button v-if="authStore.userId" class="button secondary" type="button" @click="logout">退出</button>
+          <button v-if="authStore.userId" class="button secondary" type="button" @click="logout">
+            <LogOut aria-hidden="true" />退出
+          </button>
         </div>
         <p class="muted">如果导入异常，可尝试重新授权。</p>
       </div>
@@ -51,6 +57,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { Cloud, LogOut, RotateCw, ShieldCheck } from "@lucide/vue";
 import { useRoute } from "vue-router";
 import { getBaiduAuthorizationStatus } from "../services/auth.api";
 import { useAuthStore } from "../stores/auth.store";

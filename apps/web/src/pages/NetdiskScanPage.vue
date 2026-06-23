@@ -5,27 +5,32 @@
         <h1>网盘扫描</h1>
         <p>浏览网盘目录，筛选 TXT 文件，选择后进入导入确认。</p>
       </div>
-      <button class="button secondary" type="button">导入说明</button>
+      <button class="button secondary" type="button"><Info aria-hidden="true" />导入说明</button>
     </header>
 
     <div class="toolbar">
       <input v-model="path" class="search-input" placeholder="/小说" />
       <button class="button" type="button" :disabled="loading" @click="scanDirectory">
+        <RefreshCw aria-hidden="true" />
         {{ loading ? "扫描中" : "扫描目录" }}
       </button>
       <select class="select-input" aria-label="文件类型">
         <option>TXT 文件</option>
       </select>
       <input v-model="keyword" class="search-input" placeholder="搜索 TXT 文件" />
-      <button class="button secondary" type="button" :disabled="loading || !keyword.trim()" @click="searchFiles">搜索</button>
+      <button class="button secondary" type="button" :disabled="loading || !keyword.trim()" @click="searchFiles">
+        <Search aria-hidden="true" />搜索
+      </button>
     </div>
 
     <div class="netdisk-subbar">
-      <span>⌂ 百度网盘 / {{ normalizedPathLabel }}</span>
+      <span class="netdisk-path"><Home aria-hidden="true" />百度网盘 / {{ normalizedPathLabel }}</span>
       <span>共 {{ files.length }} 项</span>
-      <button class="icon-button button secondary" type="button" aria-label="网格视图">▦</button>
-      <button class="icon-button button secondary" type="button" aria-label="列表视图">☷</button>
-      <button class="icon-button button secondary" type="button" aria-label="刷新" @click="scanDirectory">↻</button>
+      <button class="icon-button button secondary" type="button" aria-label="网格视图"><LayoutGrid aria-hidden="true" /></button>
+      <button class="icon-button button secondary" type="button" aria-label="列表视图"><List aria-hidden="true" /></button>
+      <button class="icon-button button secondary" type="button" aria-label="刷新" @click="scanDirectory">
+        <RefreshCw aria-hidden="true" />
+      </button>
     </div>
 
     <p v-if="error" class="error-text">{{ error }}</p>
@@ -41,6 +46,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { Home, Info, LayoutGrid, List, RefreshCw, Search } from "@lucide/vue";
 import { useRoute, useRouter } from "vue-router";
 import type { NetdiskFile } from "shared";
 import EmptyState from "../components/common/EmptyState.vue";
