@@ -3,16 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2026-06-21"
 
 [vars]
-APP_ENV = "development"
-FRONTEND_ORIGIN = "http://localhost:5173"
-BAIDU_REDIRECT_URI = "http://localhost:8787/api/auth/baidu/callback"
+APP_ENV = "production"
+FRONTEND_ORIGIN = "https://novel-cloud-reader.pages.dev"
+BAIDU_REDIRECT_URI = "https://novel-cloud-reader-api.readreadread-xxx.workers.dev/api/auth/baidu/callback"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "novel-cloud-reader"
-database_id = "local-dev-replace-with-real-d1-id"
+database_id = "671572f6-e83f-4ae0-af5c-16dcba0c23dc"
 migrations_dir = "../../migrations"
-
-[[r2_buckets]]
-binding = "BOOK_BUCKET"
-bucket_name = "novel-cloud-reader-books"
